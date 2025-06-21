@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, CircleCheck as CheckCircle, Circle as XCircle, RefreshCw, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 export default function DeploymentStatusScreen() {
