@@ -1,22 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Image, 
-  FlatList, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ActivityIndicator,
-  Dimensions,
-  Animated,
-  Easing
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key, GraduationCap, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key, GraduationCap, Camera, CheckCircle, Lock, User, AtSign } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 interface University {
@@ -127,17 +113,17 @@ export default function SignUpScreen() {
   const [contactMessage, setContactMessage] = useState('');
   
   // Email verification step
-  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [isResendingCode, setIsResendingCode] = useState(false);
   const [verificationError, setVerificationError] = useState('');
-  const [verificationDigits, setVerificationDigits] = useState(['', '', '', '', '', '']);
-  const digitInputRefs = useRef<Array<TextInput | null>>([]);
+  const [verificationInputRefs] = useState(() => 
+    Array(6).fill(0).map(() => React.createRef<TextInput>())
+  );
   
   // Profile setup step
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [major, setMajor] = useState('');
-  const [graduationYear, setGraduationYear] = useState('');
   
   // Password creation step
   const [password, setPassword] = useState('');
@@ -146,13 +132,12 @@ export default function SignUpScreen() {
   const [passwordStrength, setPasswordStrength] = useState(0);
 
   // Animation values
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const { width: screenWidth } = Dimensions.get('window');
-
-  // Progress animation
-  const progressAnim = useRef(new Animated.Value(0.25)).current;
+  const fadeAnim = useState(new Animated.Value(1))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
+  const scaleAnim = useState(new Animated.Value(1))[0];
+  const progressAnim = useState(new Animated.Value((currentStep - 1) / 3))[0];
+  
+  const screenWidth = Dimensions.get('window').width;
 
   useEffect(() => {
     // Only show universities when user is searching
@@ -207,14 +192,41 @@ export default function SignUpScreen() {
     setPasswordStrength(strength);
   }, [password]);
 
-  // Update progress bar when step changes
   useEffect(() => {
+    // Animate progress bar when step changes
     Animated.timing(progressAnim, {
-      toValue: currentStep * 0.25,
-      duration: 600,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
+      toValue: (currentStep - 1) / 3,
+      duration: 300,
       useNativeDriver: false
     }).start();
+
+    // Animate transition between steps
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true
+        }),
+        Animated.timing(slideAnim, {
+          toValue: -20,
+          duration: 150,
+          useNativeDriver: true
+        })
+      ]),
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true
+        })
+      ])
+    ]).start();
   }, [currentStep]);
 
   const handleUniversitySelect = (university: University) => {
@@ -227,7 +239,7 @@ export default function SignUpScreen() {
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
-        duration: 200,
+        duration: 100,
         useNativeDriver: true
       })
     ]).start();
@@ -241,33 +253,23 @@ export default function SignUpScreen() {
     setEmail('');
   };
 
-  const animateTransition = (callback: () => void) => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true
-      }),
-      Animated.timing(slideAnim, {
-        toValue: -screenWidth,
-        duration: 0,
-        useNativeDriver: true
-      })
-    ]).start(() => {
-      callback();
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true
-        })
-      ]).start();
-    });
+  const handleVerificationCodeChange = (text: string, index: number) => {
+    // Update the code at the current index
+    const newCode = [...verificationCode];
+    newCode[index] = text;
+    setVerificationCode(newCode);
+    
+    // Auto-advance to next input if current input is filled
+    if (text.length === 1 && index < 5) {
+      verificationInputRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleVerificationCodeKeyPress = (e: any, index: number) => {
+    // Move to previous input on backspace if current input is empty
+    if (e.nativeEvent.key === 'Backspace' && index > 0 && !verificationCode[index]) {
+      verificationInputRefs[index - 1].current?.focus();
+    }
   };
 
   const handleContinue = () => {
@@ -291,13 +293,11 @@ export default function SignUpScreen() {
       // Simulate API call to send verification code
       setTimeout(() => {
         setIsLoading(false);
-        animateTransition(() => {
-          setCurrentStep(SignupStep.EMAIL_VERIFICATION);
-        });
+        setCurrentStep(SignupStep.EMAIL_VERIFICATION);
       }, 1500);
     } 
     else if (currentStep === SignupStep.EMAIL_VERIFICATION) {
-      const code = verificationDigits.join('');
+      const code = verificationCode.join('');
       if (code.length !== 6) {
         setVerificationError('Please enter a valid 6-digit code');
         return;
@@ -309,9 +309,7 @@ export default function SignUpScreen() {
       setTimeout(() => {
         setIsLoading(false);
         setVerificationError('');
-        animateTransition(() => {
-          setCurrentStep(SignupStep.PROFILE_SETUP);
-        });
+        setCurrentStep(SignupStep.PROFILE_SETUP);
       }, 1500);
     }
     else if (currentStep === SignupStep.PROFILE_SETUP) {
@@ -323,9 +321,7 @@ export default function SignUpScreen() {
         return;
       }
       
-      animateTransition(() => {
-        setCurrentStep(SignupStep.PASSWORD_CREATION);
-      });
+      setCurrentStep(SignupStep.PASSWORD_CREATION);
     }
     else if (currentStep === SignupStep.PASSWORD_CREATION) {
       if (passwordStrength < 3) {
@@ -352,57 +348,8 @@ export default function SignUpScreen() {
     // Simulate API call to resend code
     setTimeout(() => {
       setIsResendingCode(false);
-      // Reset verification code inputs
-      setVerificationDigits(['', '', '', '', '', '']);
-      if (digitInputRefs.current[0]) {
-        digitInputRefs.current[0].focus();
-      }
+      // Show success message
     }, 1500);
-  };
-
-  const handleVerificationDigitChange = (text: string, index: number) => {
-    if (text.length > 1) {
-      // Handle paste of full code
-      const digits = text.split('').slice(0, 6);
-      const newVerificationDigits = [...verificationDigits];
-      
-      digits.forEach((digit, i) => {
-        if (index + i < 6) {
-          newVerificationDigits[index + i] = digit;
-        }
-      });
-      
-      setVerificationDigits(newVerificationDigits);
-      
-      // Focus on the last input or the next empty one
-      const nextIndex = Math.min(index + digits.length, 5);
-      if (digitInputRefs.current[nextIndex]) {
-        digitInputRefs.current[nextIndex].focus();
-      }
-    } else {
-      // Handle single digit input
-      const newVerificationDigits = [...verificationDigits];
-      newVerificationDigits[index] = text;
-      setVerificationDigits(newVerificationDigits);
-      
-      // Auto-advance to next input
-      if (text && index < 5 && digitInputRefs.current[index + 1]) {
-        digitInputRefs.current[index + 1].focus();
-      }
-    }
-  };
-
-  const handleVerificationDigitKeyPress = (e: any, index: number) => {
-    // Handle backspace to go to previous input
-    if (e.nativeEvent.key === 'Backspace' && !verificationDigits[index] && index > 0) {
-      const newVerificationDigits = [...verificationDigits];
-      newVerificationDigits[index - 1] = '';
-      setVerificationDigits(newVerificationDigits);
-      
-      if (digitInputRefs.current[index - 1]) {
-        digitInputRefs.current[index - 1].focus();
-      }
-    }
   };
 
   const handleSubmitContact = () => {
@@ -446,466 +393,6 @@ export default function SignUpScreen() {
     </Animated.View>
   );
 
-  const renderUniversitySelectionStep = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { 
-          opacity: fadeAnim,
-          transform: [{ translateX: slideAnim }]
-        }
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-          Join Your Campus
-        </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Select your university to get started
-        </Text>
-      </View>
-
-      {!selectedUniversity ? (
-        <>
-          <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            <TextInput
-              style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
-              placeholder="Search for your university..."
-              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {searchQuery.trim() !== '' && (
-            <FlatList
-              data={filteredUniversities}
-              renderItem={renderUniversityItem}
-              keyExtractor={(item) => item.id}
-              style={styles.universitiesList}
-              contentContainerStyle={styles.universitiesListContent}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Text style={[styles.emptyStateText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                    No universities found matching "{searchQuery}"
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.contactButton, { backgroundColor: '#3B82F6' }]}
-                    onPress={() => setShowContactModal(true)}
-                  >
-                    <Mail size={18} color="#FFFFFF" />
-                    <Text style={styles.contactButtonText}>Contact Us to Add Your School</Text>
-                  </TouchableOpacity>
-                </View>
-              }
-            />
-          )}
-        </>
-      ) : (
-        <View style={styles.selectedUniversityContainer}>
-          <Animated.View 
-            style={[
-              styles.selectedUniversityCard,
-              { 
-                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                transform: [{ scale: scaleAnim }]
-              }
-            ]}
-          >
-            <TouchableOpacity
-              style={[styles.clearButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-              onPress={handleClearSelection}
-            >
-              <X size={20} color={isDark ? '#E5E7EB' : '#4B5563'} />
-            </TouchableOpacity>
-
-            <Image source={{ uri: selectedUniversity.logo }} style={styles.selectedUniversityLogo} />
-            <Text style={[styles.selectedUniversityName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              {selectedUniversity.name}
-            </Text>
-            <Text style={[styles.selectedUniversityLocation, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {selectedUniversity.location}
-            </Text>
-
-            <View style={styles.emailContainer}>
-              <Text style={[styles.emailLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                Enter your university email
-              </Text>
-              <View style={[
-                styles.emailInputContainer,
-                { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
-              ]}>
-                <Mail size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
-                <TextInput
-                  style={[styles.emailInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
-                  placeholder={`yourname@${selectedUniversity.domain}`}
-                  placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
-            </View>
-          </Animated.View>
-        </View>
-      )}
-    </Animated.View>
-  );
-
-  const renderEmailVerificationStep = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { 
-          opacity: fadeAnim,
-          transform: [{ translateX: slideAnim }]
-        }
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-          Verify Your Email
-        </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          We've sent a verification code to {email}
-        </Text>
-      </View>
-
-      <View style={styles.verificationContainer}>
-        <View style={[
-          styles.verificationCard,
-          { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
-        ]}>
-          {verificationError ? (
-            <View style={styles.errorContainer}>
-              <AlertCircle size={20} color="#EF4444" />
-              <Text style={styles.errorText}>{verificationError}</Text>
-            </View>
-          ) : null}
-          
-          <Text style={[styles.verificationLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-            Enter 6-digit verification code
-          </Text>
-          
-          <View style={styles.verificationInputsContainer}>
-            {verificationDigits.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={ref => digitInputRefs.current[index] = ref}
-                style={[
-                  styles.verificationDigitInput,
-                  { 
-                    backgroundColor: isDark ? '#0F172A' : '#F9FAFB', 
-                    color: isDark ? '#E5E7EB' : '#1F2937', 
-                    borderColor: isDark ? '#374151' : '#E5E7EB',
-                    ...Platform.select({ web: { outlineStyle: 'none' } })
-                  }
-                ]}
-                value={digit}
-                onChangeText={(text) => handleVerificationDigitChange(text, index)}
-                onKeyPress={(e) => handleVerificationDigitKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-              />
-            ))}
-          </View>
-          
-          <View style={styles.verificationFooter}>
-            <Text style={[styles.verificationHint, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              Didn't receive the code?
-            </Text>
-            <TouchableOpacity 
-              style={styles.resendButton}
-              onPress={handleResendCode}
-              disabled={isResendingCode}
-            >
-              {isResendingCode ? (
-                <ActivityIndicator size="small" color={isDark ? '#60A5FA' : '#3B82F6'} />
-              ) : (
-                <Text style={[styles.resendButtonText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-                  Resend Code
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderProfileSetupStep = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { 
-          opacity: fadeAnim,
-          transform: [{ translateX: slideAnim }]
-        }
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-          Create Your Profile
-        </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Tell us a bit about yourself
-        </Text>
-      </View>
-
-      <View style={styles.profileContainer}>
-        <View style={[
-          styles.profileCard,
-          { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
-        ]}>
-          <TouchableOpacity style={styles.avatarUpload}>
-            <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-              <Text style={[styles.avatarInitials, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                {fullName ? fullName.charAt(0).toUpperCase() : '?'}
-              </Text>
-            </View>
-            <Text style={[styles.avatarUploadText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-              Add Photo
-            </Text>
-          </TouchableOpacity>
-          
-          <View style={styles.profileInputGroup}>
-            <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Full Name
-            </Text>
-            <TextInput
-              style={[
-                styles.profileInput,
-                { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-              ]}
-              placeholder="Your full name"
-              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-            />
-          </View>
-          
-          <View style={styles.profileInputGroup}>
-            <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Username
-            </Text>
-            <TextInput
-              style={[
-                styles.profileInput,
-                { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-              ]}
-              placeholder="Choose a username"
-              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
-          </View>
-          
-          <View style={styles.profileInputGroup}>
-            <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Major/Program
-            </Text>
-            <TextInput
-              style={[
-                styles.profileInput,
-                { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-              ]}
-              placeholder="e.g., Computer Science"
-              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-              value={major}
-              onChangeText={setMajor}
-            />
-          </View>
-          
-          <View style={styles.profileInputGroup}>
-            <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Graduation Year
-            </Text>
-            <TextInput
-              style={[
-                styles.profileInput,
-                { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-              ]}
-              placeholder="e.g., 2025"
-              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-              value={graduationYear}
-              onChangeText={setGraduationYear}
-              keyboardType="number-pad"
-            />
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderPasswordCreationStep = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { 
-          opacity: fadeAnim,
-          transform: [{ translateX: slideAnim }]
-        }
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-          Secure Your Account
-        </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Create a strong password to protect your account
-        </Text>
-      </View>
-
-      <View style={styles.passwordContainer}>
-        <View style={[
-          styles.passwordCard,
-          { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
-        ]}>
-          <View style={styles.passwordInputGroup}>
-            <Text style={[styles.passwordInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Password
-            </Text>
-            <View style={[
-              styles.passwordInputContainer,
-              { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
-            ]}>
-              <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
-              <TextInput
-                style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
-                placeholder="Create a password"
-                placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? (
-                  <EyeOff size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
-                ) : (
-                  <Eye size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
-                )}
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.strengthMeterContainer}>
-              <View style={styles.strengthBars}>
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <View 
-                    key={level}
-                    style={[
-                      styles.strengthBar,
-                      { 
-                        backgroundColor: passwordStrength >= level ? 
-                          getStrengthColor(passwordStrength) : 
-                          (isDark ? '#374151' : '#E5E7EB') 
-                      }
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.strengthText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                {getStrengthLabel(passwordStrength)}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.passwordInputGroup}>
-            <Text style={[styles.passwordInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Confirm Password
-            </Text>
-            <View style={[
-              styles.passwordInputContainer,
-              { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
-            ]}>
-              <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
-              <TextInput
-                style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
-                placeholder="Confirm your password"
-                placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showPassword}
-              />
-            </View>
-            {password && confirmPassword && password !== confirmPassword && (
-              <Text style={styles.passwordMismatchText}>
-                Passwords don't match
-              </Text>
-            )}
-          </View>
-          
-          <View style={styles.passwordRequirements}>
-            <Text style={[styles.passwordRequirementsTitle, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              Password Requirements:
-            </Text>
-            <View style={styles.requirementList}>
-              <View style={styles.requirementItem}>
-                <View style={[
-                  styles.requirementCheck,
-                  password.length >= 8 ? styles.requirementMet : styles.requirementNotMet,
-                  { borderColor: isDark ? '#374151' : '#E5E7EB' }
-                ]}>
-                  {password.length >= 8 && <CheckCircle size={12} color="#10B981" />}
-                </View>
-                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  At least 8 characters
-                </Text>
-              </View>
-              <View style={styles.requirementItem}>
-                <View style={[
-                  styles.requirementCheck,
-                  /[A-Z]/.test(password) ? styles.requirementMet : styles.requirementNotMet,
-                  { borderColor: isDark ? '#374151' : '#E5E7EB' }
-                ]}>
-                  {/[A-Z]/.test(password) && <CheckCircle size={12} color="#10B981" />}
-                </View>
-                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  At least one uppercase letter
-                </Text>
-              </View>
-              <View style={styles.requirementItem}>
-                <View style={[
-                  styles.requirementCheck,
-                  /[0-9]/.test(password) ? styles.requirementMet : styles.requirementNotMet,
-                  { borderColor: isDark ? '#374151' : '#E5E7EB' }
-                ]}>
-                  {/[0-9]/.test(password) && <CheckCircle size={12} color="#10B981" />}
-                </View>
-                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  At least one number
-                </Text>
-              </View>
-              <View style={styles.requirementItem}>
-                <View style={[
-                  styles.requirementCheck,
-                  /[^A-Za-z0-9]/.test(password) ? styles.requirementMet : styles.requirementNotMet,
-                  { borderColor: isDark ? '#374151' : '#E5E7EB' }
-                ]}>
-                  {/[^A-Za-z0-9]/.test(password) && <CheckCircle size={12} color="#10B981" />}
-                </View>
-                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  At least one special character
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
   const getStrengthColor = (strength: number): string => {
     if (strength <= 1) return '#EF4444'; // Red
     if (strength <= 3) return '#F59E0B'; // Amber
@@ -921,19 +408,450 @@ export default function SignUpScreen() {
     return 'Very strong';
   };
 
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case SignupStep.UNIVERSITY_SELECTION:
-        return renderUniversitySelectionStep();
-      case SignupStep.EMAIL_VERIFICATION:
-        return renderEmailVerificationStep();
-      case SignupStep.PROFILE_SETUP:
-        return renderProfileSetupStep();
-      case SignupStep.PASSWORD_CREATION:
-        return renderPasswordCreationStep();
-      default:
-        return renderUniversitySelectionStep();
-    }
+  const renderStepContent = () => {
+    return (
+      <Animated.View 
+        style={[
+          styles.stepContent,
+          { 
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        {currentStep === SignupStep.UNIVERSITY_SELECTION && (
+          <>
+            {!selectedUniversity ? (
+              <>
+                <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+                  <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  <TextInput
+                    style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
+                    placeholder="Search for your university..."
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {searchQuery.trim() !== '' && (
+                  <FlatList
+                    data={filteredUniversities}
+                    renderItem={renderUniversityItem}
+                    keyExtractor={(item) => item.id}
+                    style={styles.universitiesList}
+                    contentContainerStyle={styles.universitiesListContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                      <View style={styles.emptyState}>
+                        <Text style={[styles.emptyStateText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                          No universities found matching "{searchQuery}"
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.contactButton, { backgroundColor: '#3B82F6' }]}
+                          onPress={() => setShowContactModal(true)}
+                        >
+                          <Mail size={18} color="#FFFFFF" />
+                          <Text style={styles.contactButtonText}>Contact Us to Add Your School</Text>
+                        </TouchableOpacity>
+                      </View>
+                    }
+                  />
+                )}
+              </>
+            ) : (
+              <View style={styles.selectedUniversityContainer}>
+                <View style={[
+                  styles.selectedUniversityCard,
+                  { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
+                ]}>
+                  <TouchableOpacity
+                    style={[styles.clearButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                    onPress={handleClearSelection}
+                  >
+                    <X size={20} color={isDark ? '#E5E7EB' : '#4B5563'} />
+                  </TouchableOpacity>
+
+                  <Image source={{ uri: selectedUniversity.logo }} style={styles.selectedUniversityLogo} />
+                  <Text style={[styles.selectedUniversityName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {selectedUniversity.name}
+                  </Text>
+                  <Text style={[styles.selectedUniversityLocation, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {selectedUniversity.location}
+                  </Text>
+
+                  <View style={styles.emailContainer}>
+                    <Text style={[styles.emailLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                      Enter your university email
+                    </Text>
+                    <View style={[
+                      styles.emailInputContainer,
+                      { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
+                    ]}>
+                      <Mail size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                      <TextInput
+                        style={[styles.emailInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
+                        placeholder={`yourname@${selectedUniversity.domain}`}
+                        placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                      />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
+        {currentStep === SignupStep.EMAIL_VERIFICATION && (
+          <View style={styles.verificationContainer}>
+            <View style={[
+              styles.verificationCard,
+              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
+            ]}>
+              {verificationError ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{verificationError}</Text>
+                </View>
+              ) : null}
+              
+              <View style={styles.verificationHeader}>
+                <CheckCircle size={40} color="#10B981" />
+                <Text style={[styles.verificationHeaderText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  Check your inbox
+                </Text>
+                <Text style={[styles.verificationSubtext, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  We've sent a verification code to {email}
+                </Text>
+              </View>
+              
+              <View style={styles.codeInputContainer}>
+                {verificationCode.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={verificationInputRefs[index]}
+                    style={[
+                      styles.codeInput,
+                      { 
+                        backgroundColor: isDark ? '#0F172A' : '#F9FAFB', 
+                        color: isDark ? '#E5E7EB' : '#1F2937', 
+                        borderColor: digit ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
+                        ...Platform.select({ web: { outlineStyle: 'none' } })
+                      }
+                    ]}
+                    value={digit}
+                    onChangeText={(text) => handleVerificationCodeChange(text, index)}
+                    onKeyPress={(e) => handleVerificationCodeKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                  />
+                ))}
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.resendButton}
+                onPress={handleResendCode}
+                disabled={isResendingCode}
+              >
+                {isResendingCode ? (
+                  <ActivityIndicator size="small" color={isDark ? '#60A5FA' : '#3B82F6'} />
+                ) : (
+                  <Text style={[styles.resendButtonText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                    Didn't receive a code? Resend
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {currentStep === SignupStep.PROFILE_SETUP && (
+          <View style={styles.profileContainer}>
+            <View style={[
+              styles.profileCard,
+              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
+            ]}>
+              <TouchableOpacity style={styles.avatarUpload}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                  {fullName ? (
+                    <Text style={[styles.avatarInitials, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                      {fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </Text>
+                  ) : (
+                    <Camera size={32} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  )}
+                </View>
+                <Text style={[styles.avatarUploadText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                  Add Photo
+                </Text>
+              </TouchableOpacity>
+              
+              <View style={styles.profileInputGroup}>
+                <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Full Name
+                </Text>
+                <View style={styles.inputWithIcon}>
+                  <User size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  <TextInput
+                    style={[
+                      styles.profileInput,
+                      { 
+                        backgroundColor: isDark ? '#0F172A' : '#F9FAFB', 
+                        color: isDark ? '#E5E7EB' : '#1F2937', 
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                        ...Platform.select({ web: { outlineStyle: 'none' } })
+                      }
+                    ]}
+                    placeholder="Your full name"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.profileInputGroup}>
+                <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Username
+                </Text>
+                <View style={styles.inputWithIcon}>
+                  <AtSign size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  <TextInput
+                    style={[
+                      styles.profileInput,
+                      { 
+                        backgroundColor: isDark ? '#0F172A' : '#F9FAFB', 
+                        color: isDark ? '#E5E7EB' : '#1F2937', 
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                        ...Platform.select({ web: { outlineStyle: 'none' } })
+                      }
+                    ]}
+                    placeholder="Choose a username"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.profileInputGroup}>
+                <Text style={[styles.profileInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Major/Field of Study
+                </Text>
+                <View style={styles.inputWithIcon}>
+                  <GraduationCap size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  <TextInput
+                    style={[
+                      styles.profileInput,
+                      { 
+                        backgroundColor: isDark ? '#0F172A' : '#F9FAFB', 
+                        color: isDark ? '#E5E7EB' : '#1F2937', 
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                        ...Platform.select({ web: { outlineStyle: 'none' } })
+                      }
+                    ]}
+                    placeholder="e.g., Computer Science"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={major}
+                    onChangeText={setMajor}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {currentStep === SignupStep.PASSWORD_CREATION && (
+          <View style={styles.passwordContainer}>
+            <View style={[
+              styles.passwordCard,
+              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
+            ]}>
+              <View style={styles.passwordHeader}>
+                <Lock size={40} color="#3B82F6" />
+                <Text style={[styles.passwordTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  Secure Your Account
+                </Text>
+                <Text style={[styles.passwordSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Create a strong password to protect your account
+                </Text>
+              </View>
+              
+              <View style={styles.passwordInputGroup}>
+                <Text style={[styles.passwordInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Password
+                </Text>
+                <View style={[
+                  styles.passwordInputContainer,
+                  { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
+                ]}>
+                  <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  <TextInput
+                    style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
+                    placeholder="Create a password"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    {showPassword ? (
+                      <EyeOff size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                    ) : (
+                      <Eye size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.strengthMeterContainer}>
+                  <View style={styles.strengthBars}>
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <View 
+                        key={level}
+                        style={[
+                          styles.strengthBar,
+                          { 
+                            backgroundColor: passwordStrength >= level ? 
+                              getStrengthColor(passwordStrength) : 
+                              (isDark ? '#374151' : '#E5E7EB') 
+                          }
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[
+                    styles.strengthText, 
+                    { color: passwordStrength > 0 ? getStrengthColor(passwordStrength) : (isDark ? '#9CA3AF' : '#6B7280') }
+                  ]}>
+                    {getStrengthLabel(passwordStrength)}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.passwordInputGroup}>
+                <Text style={[styles.passwordInputLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Confirm Password
+                </Text>
+                <View style={[
+                  styles.passwordInputContainer,
+                  { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
+                ]}>
+                  <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                  <TextInput
+                    style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
+                    placeholder="Confirm your password"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                </View>
+                {password && confirmPassword && password !== confirmPassword && (
+                  <Text style={styles.passwordMismatchText}>
+                    Passwords don't match
+                  </Text>
+                )}
+              </View>
+              
+              <View style={styles.passwordRequirements}>
+                <Text style={[styles.requirementsTitle, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  Password Requirements:
+                </Text>
+                <View style={styles.requirementList}>
+                  <View style={styles.requirementItem}>
+                    <View style={[
+                      styles.checkCircle, 
+                      { 
+                        backgroundColor: password.length >= 8 ? '#10B981' : 'transparent',
+                        borderColor: password.length >= 8 ? '#10B981' : (isDark ? '#4B5563' : '#D1D5DB')
+                      }
+                    ]}>
+                      {password.length >= 8 && <CheckCircle size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[
+                      styles.requirementText, 
+                      { 
+                        color: password.length >= 8 ? '#10B981' : (isDark ? '#E5E7EB' : '#4B5563')
+                      }
+                    ]}>
+                      At least 8 characters
+                    </Text>
+                  </View>
+                  <View style={styles.requirementItem}>
+                    <View style={[
+                      styles.checkCircle, 
+                      { 
+                        backgroundColor: /[A-Z]/.test(password) ? '#10B981' : 'transparent',
+                        borderColor: /[A-Z]/.test(password) ? '#10B981' : (isDark ? '#4B5563' : '#D1D5DB')
+                      }
+                    ]}>
+                      {/[A-Z]/.test(password) && <CheckCircle size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[
+                      styles.requirementText, 
+                      { 
+                        color: /[A-Z]/.test(password) ? '#10B981' : (isDark ? '#E5E7EB' : '#4B5563')
+                      }
+                    ]}>
+                      At least one uppercase letter
+                    </Text>
+                  </View>
+                  <View style={styles.requirementItem}>
+                    <View style={[
+                      styles.checkCircle, 
+                      { 
+                        backgroundColor: /[0-9]/.test(password) ? '#10B981' : 'transparent',
+                        borderColor: /[0-9]/.test(password) ? '#10B981' : (isDark ? '#4B5563' : '#D1D5DB')
+                      }
+                    ]}>
+                      {/[0-9]/.test(password) && <CheckCircle size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[
+                      styles.requirementText, 
+                      { 
+                        color: /[0-9]/.test(password) ? '#10B981' : (isDark ? '#E5E7EB' : '#4B5563')
+                      }
+                    ]}>
+                      At least one number
+                    </Text>
+                  </View>
+                  <View style={styles.requirementItem}>
+                    <View style={[
+                      styles.checkCircle, 
+                      { 
+                        backgroundColor: /[^A-Za-z0-9]/.test(password) ? '#10B981' : 'transparent',
+                        borderColor: /[^A-Za-z0-9]/.test(password) ? '#10B981' : (isDark ? '#4B5563' : '#D1D5DB')
+                      }
+                    ]}>
+                      {/[^A-Za-z0-9]/.test(password) && <CheckCircle size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[
+                      styles.requirementText, 
+                      { 
+                        color: /[^A-Za-z0-9]/.test(password) ? '#10B981' : (isDark ? '#E5E7EB' : '#4B5563')
+                      }
+                    ]}>
+                      At least one special character
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+      </Animated.View>
+    );
   };
 
   const isContinueEnabled = () => {
@@ -941,7 +859,7 @@ export default function SignUpScreen() {
       case SignupStep.UNIVERSITY_SELECTION:
         return selectedUniversity && email.trim() && email.includes('@') && email.endsWith(selectedUniversity.domain);
       case SignupStep.EMAIL_VERIFICATION:
-        return verificationDigits.every(digit => digit !== '');
+        return verificationCode.every(digit => digit.length === 1);
       case SignupStep.PROFILE_SETUP:
         return fullName.trim() && username.trim();
       case SignupStep.PASSWORD_CREATION:
@@ -957,13 +875,29 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        {/* Logo and Branding */}
-        <View style={styles.brandingContainer}>
-          <View style={[styles.logoCircle, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <GraduationCap size={32} color={isDark ? '#60A5FA' : '#3B82F6'} />
+        {/* App Logo and Branding */}
+        <View style={styles.brandingHeader}>
+          <View style={[styles.logoContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+            <GraduationCap size={32} color="#3B82F6" />
           </View>
-          <Text style={[styles.brandName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+          <Text style={[styles.appName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
             Semster
+          </Text>
+        </View>
+        
+        {/* Step Title */}
+        <View style={styles.stepTitleContainer}>
+          <Text style={[styles.stepTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            {currentStep === SignupStep.UNIVERSITY_SELECTION && 'Select Your School'}
+            {currentStep === SignupStep.EMAIL_VERIFICATION && 'Verify Your Email'}
+            {currentStep === SignupStep.PROFILE_SETUP && 'Create Your Profile'}
+            {currentStep === SignupStep.PASSWORD_CREATION && 'Secure Your Account'}
+          </Text>
+          <Text style={[styles.stepDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            {currentStep === SignupStep.UNIVERSITY_SELECTION && 'Find your university to get started'}
+            {currentStep === SignupStep.EMAIL_VERIFICATION && 'Enter the 6-digit code sent to your email'}
+            {currentStep === SignupStep.PROFILE_SETUP && 'Tell us a bit about yourself'}
+            {currentStep === SignupStep.PASSWORD_CREATION && 'Create a strong password to protect your account'}
           </Text>
         </View>
         
@@ -971,7 +905,7 @@ export default function SignUpScreen() {
         <View style={styles.progressBarContainer}>
           <Animated.View 
             style={[
-              styles.progressBar,
+              styles.progressBar, 
               { 
                 backgroundColor: '#3B82F6',
                 width: progressAnim.interpolate({
@@ -983,60 +917,15 @@ export default function SignUpScreen() {
           />
         </View>
         
-        {/* Step Indicator */}
-        <View style={styles.stepIndicatorContainer}>
-          {[1, 2, 3, 4].map((step) => (
-            <View 
-              key={step}
-              style={[
-                styles.stepIndicatorWrapper,
-                { opacity: step <= currentStep ? 1 : 0.5 }
-              ]}
-            >
-              <View 
-                style={[
-                  styles.stepIndicator,
-                  { 
-                    backgroundColor: step <= currentStep ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
-                    borderColor: step === currentStep ? '#60A5FA' : 'transparent',
-                  }
-                ]}
-              >
-                {step < currentStep && (
-                  <CheckCircle size={16} color="#FFFFFF" />
-                )}
-                {step === currentStep && (
-                  <Text style={styles.currentStepText}>{step}</Text>
-                )}
-                {step > currentStep && (
-                  <Text style={styles.futureStepText}>{step}</Text>
-                )}
-              </View>
-              <Text style={[
-                styles.stepLabel,
-                { 
-                  color: step <= currentStep ? 
-                    (isDark ? '#E5E7EB' : '#4B5563') : 
-                    (isDark ? '#9CA3AF' : '#9CA3AF')
-                }
-              ]}>
-                {step === 1 ? 'School' : 
-                 step === 2 ? 'Verify' : 
-                 step === 3 ? 'Profile' : 'Secure'}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {/* Step Content */}
+        {renderStepContent()}
 
-        {renderCurrentStep()}
-
+        {/* Continue Button */}
         <TouchableOpacity
           style={[
             styles.continueButton,
             { 
-              backgroundColor: isContinueEnabled() ? 
-                '#3B82F6' : 
-                (isDark ? '#374151' : '#E5E7EB'),
+              backgroundColor: isContinueEnabled() ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
               opacity: isContinueEnabled() ? 1 : 0.5
             }
           ]}
@@ -1066,9 +955,46 @@ export default function SignUpScreen() {
           )}
         </TouchableOpacity>
 
+        {/* Step Indicator */}
+        <View style={styles.stepIndicatorContainer}>
+          {[1, 2, 3, 4].map((step) => (
+            <View key={step} style={styles.stepIndicatorWrapper}>
+              <View 
+                style={[
+                  styles.stepIndicator,
+                  { 
+                    backgroundColor: currentStep >= step ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
+                    borderColor: currentStep === step ? '#3B82F6' : 'transparent',
+                  }
+                ]}
+              >
+                {currentStep > step && (
+                  <CheckCircle size={16} color="#FFFFFF" />
+                )}
+                {currentStep === step && (
+                  <Text style={styles.currentStepText}>{step}</Text>
+                )}
+              </View>
+              <Text style={[
+                styles.stepLabel, 
+                { 
+                  color: currentStep >= step ? 
+                    (isDark ? '#FFFFFF' : '#111827') : 
+                    (isDark ? '#9CA3AF' : '#6B7280')
+                }
+              ]}>
+                {step === 1 && 'School'}
+                {step === 2 && 'Verify'}
+                {step === 3 && 'Profile'}
+                {step === 4 && 'Secure'}
+              </Text>
+            </View>
+          ))}
+        </View>
+        
         {/* Sign In Link */}
         <View style={styles.signInContainer}>
-          <Text style={[styles.signInText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={[styles.signInText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
             Already have an account?
           </Text>
           <TouchableOpacity onPress={() => router.push('/')}>
@@ -1192,16 +1118,16 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  brandingContainer: {
+  brandingHeader: {
     alignItems: 'center',
     marginBottom: 24,
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  logoCircle: {
+  logoContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1214,73 +1140,47 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  brandName: {
+  appName: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
+  },
+  stepTitleContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  stepDescription: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    maxWidth: '80%',
   },
   progressBarContainer: {
     height: 4,
     backgroundColor: 'rgba(59, 130, 246, 0.2)',
     borderRadius: 2,
-    marginBottom: 24,
+    marginBottom: 32,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     borderRadius: 2,
   },
-  stepIndicatorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-  },
-  stepIndicatorWrapper: {
-    alignItems: 'center',
-  },
-  stepIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 2,
-  },
-  currentStepText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-  },
-  futureStepText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-  },
-  stepLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-  },
-  stepContainer: {
+  stepContent: {
     flex: 1,
-  },
-  header: {
     marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
@@ -1307,7 +1207,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -1420,36 +1320,62 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    height: 56,
   },
   emailInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
+    marginLeft: 12,
   },
   continueButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: 56,
-    borderRadius: 12,
-    marginTop: 24,
+    borderRadius: 16,
+    marginBottom: 24,
     gap: 8,
   },
   continueButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },
+  stepIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  stepIndicatorWrapper: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  currentStepText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+  },
+  stepLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
   signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    gap: 4,
   },
   signInText: {
     fontFamily: 'Inter-Regular',
     fontSize: 14,
-    marginRight: 4,
   },
   signInLink: {
     fontFamily: 'Inter-SemiBold',
@@ -1522,7 +1448,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
@@ -1549,55 +1475,53 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  errorContainer: {
-    flexDirection: 'row',
+  verificationHeader: {
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    marginBottom: 24,
+  },
+  verificationHeaderText: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  verificationSubtext: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
-    gap: 8,
   },
   errorText: {
     color: '#EF4444',
     fontFamily: 'Inter-Medium',
     fontSize: 14,
-    flex: 1,
   },
-  verificationLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  verificationInputsContainer: {
+  codeInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  verificationDigitInput: {
+  codeInput: {
     width: 48,
     height: 56,
-    borderWidth: 1,
+    borderWidth: 2,
     borderRadius: 12,
     fontSize: 24,
     fontFamily: 'Inter-Bold',
     textAlign: 'center',
   },
-  verificationFooter: {
-    alignItems: 'center',
-  },
-  verificationHint: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    marginBottom: 8,
-  },
   resendButton: {
+    alignSelf: 'center',
     padding: 8,
   },
   resendButtonText: {
     fontFamily: 'Inter-Medium',
-    fontSize: 16,
+    fontSize: 14,
   },
   profileContainer: {
     flex: 1,
@@ -1647,13 +1571,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     marginBottom: 8,
   },
-  profileInput: {
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
+  },
+  profileInput: {
+    flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
+    marginLeft: 12,
   },
   passwordContainer: {
     flex: 1,
@@ -1673,8 +1603,23 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  passwordInputGroup: {
+  passwordHeader: {
+    alignItems: 'center',
     marginBottom: 24,
+  },
+  passwordTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  passwordSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+  },
+  passwordInputGroup: {
+    marginBottom: 20,
   },
   passwordInputLabel: {
     fontSize: 14,
@@ -1687,13 +1632,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    height: 56,
   },
   passwordInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
+    marginLeft: 12,
   },
   strengthMeterContainer: {
     marginTop: 12,
@@ -1710,7 +1655,7 @@ const styles = StyleSheet.create({
   },
   strengthText: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Inter-Medium',
   },
   passwordMismatchText: {
     color: '#EF4444',
@@ -1719,12 +1664,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   passwordRequirements: {
-    marginTop: 16,
+    marginTop: 24,
     padding: 16,
     borderRadius: 12,
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
   },
-  passwordRequirementsTitle: {
+  requirementsTitle: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     marginBottom: 12,
@@ -1737,21 +1682,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  requirementCheck: {
+  checkCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  requirementMet: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-  },
-  requirementNotMet: {
-    borderColor: '#E5E7EB',
-    backgroundColor: 'transparent',
   },
   requirementText: {
     fontSize: 14,
