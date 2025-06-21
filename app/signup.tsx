@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Search, ArrowRight, Mail, X } from 'lucide-react-native';
+import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 interface University {
@@ -526,6 +526,12 @@ export default function SignUpScreen() {
               autoCapitalize="none"
             />
           </View>
+          
+          <View style={styles.passwordSetupPrompt}>
+            <Text style={[styles.passwordPromptText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+              Next, you'll create a secure password for your account
+            </Text>
+          </View>
         </View>
       </View>
     </>
@@ -555,6 +561,7 @@ export default function SignUpScreen() {
               styles.passwordInputContainer,
               { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
             ]}>
+              <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
               <TextInput
                 style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
                 placeholder="Create a password"
@@ -564,9 +571,11 @@ export default function SignUpScreen() {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Text style={[styles.showHideText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-                  {showPassword ? 'Hide' : 'Show'}
-                </Text>
+                {showPassword ? (
+                  <EyeOff size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                ) : (
+                  <Eye size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+                )}
               </TouchableOpacity>
             </View>
             
@@ -600,6 +609,7 @@ export default function SignUpScreen() {
               styles.passwordInputContainer,
               { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
             ]}>
+              <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
               <TextInput
                 style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937', ...Platform.select({ web: { outlineStyle: 'none' } }) }]}
                 placeholder="Confirm your password"
@@ -614,6 +624,50 @@ export default function SignUpScreen() {
                 Passwords don't match
               </Text>
             )}
+          </View>
+          
+          <View style={styles.passwordRequirements}>
+            <Text style={[styles.passwordRequirementsTitle, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+              Password Requirements:
+            </Text>
+            <View style={styles.requirementList}>
+              <View style={styles.requirementItem}>
+                <View style={[
+                  styles.requirementDot, 
+                  { backgroundColor: password.length >= 8 ? '#10B981' : (isDark ? '#374151' : '#E5E7EB') }
+                ]} />
+                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  At least 8 characters
+                </Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <View style={[
+                  styles.requirementDot, 
+                  { backgroundColor: /[A-Z]/.test(password) ? '#10B981' : (isDark ? '#374151' : '#E5E7EB') }
+                ]} />
+                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  At least one uppercase letter
+                </Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <View style={[
+                  styles.requirementDot, 
+                  { backgroundColor: /[0-9]/.test(password) ? '#10B981' : (isDark ? '#374151' : '#E5E7EB') }
+                ]} />
+                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  At least one number
+                </Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <View style={[
+                  styles.requirementDot, 
+                  { backgroundColor: /[^A-Za-z0-9]/.test(password) ? '#10B981' : (isDark ? '#374151' : '#E5E7EB') }
+                ]} />
+                <Text style={[styles.requirementText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  At least one special character
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -1212,6 +1266,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
   },
+  passwordSetupPrompt: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    width: '100%',
+  },
+  passwordPromptText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
+  },
   passwordContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1250,10 +1316,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-  },
-  showHideText: {
-    fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    marginLeft: 12,
   },
   strengthMeterContainer: {
     marginTop: 12,
@@ -1277,5 +1340,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     fontSize: 14,
     marginTop: 8,
+  },
+  passwordRequirements: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  passwordRequirementsTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 12,
+  },
+  requirementList: {
+    gap: 8,
+  },
+  requirementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requirementDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  requirementText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
   },
 });
