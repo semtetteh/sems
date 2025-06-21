@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, Image, ScrollView, Dimensions, Alert, Switch, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key, GraduationCap } from 'lucide-react-native';
@@ -101,6 +101,8 @@ enum SignupStep {
 
 export default function SignUpScreen() {
   const { isDark } = useTheme();
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
   const [currentStep, setCurrentStep] = useState<SignupStep>(SignupStep.UNIVERSITY_SELECTION);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUniversities, setFilteredUniversities] = useState<University[]>([]);
@@ -116,6 +118,8 @@ export default function SignUpScreen() {
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [isResendingCode, setIsResendingCode] = useState(false);
   const [verificationError, setVerificationError] = useState('');
+  const [verificationTimer, setVerificationTimer] = useState(60);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   
   // Profile setup step
   const [fullName, setFullName] = useState('');
@@ -180,19 +184,30 @@ export default function SignUpScreen() {
     setPasswordStrength(strength);
   }, [password]);
 
-  const handleUniversitySelect = (university: University) => {
-    setSelectedUniversity(university);
-    setEmail('');
-  };
-
-  const handleClearSelection = () => {
-    setSelectedUniversity(null);
-    setEmail('');
-  };
+  useEffect(() => {
+    // Countdown timer for resending verification code
+    let interval: NodeJS.Timeout;
+    
+    if (isTimerRunning && verificationTimer > 0) {
+      interval = setInterval(() => {
+        setVerificationTimer(prev => prev - 1);
+      }, 1000);
+    } else if (verificationTimer === 0) {
+      setIsTimerRunning(false);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, verificationTimer]);
 
   const handleVerificationCodeChange = (text: string, index: number) => {
     // Update the code at the specified index
     const newCode = [...verificationCode];
+    
+    // Only allow numbers
+    if (text && !/^\d+$/.test(text)) return;
+    
     newCode[index] = text;
     setVerificationCode(newCode);
     
@@ -204,6 +219,16 @@ export default function SignUpScreen() {
         nextInput.focus();
       }
     }
+  };
+
+  const handleUniversitySelect = (university: University) => {
+    setSelectedUniversity(university);
+    setEmail('');
+  };
+
+  const handleClearSelection = () => {
+    setSelectedUniversity(null);
+    setEmail('');
   };
 
   const handleContinue = () => {
@@ -228,6 +253,9 @@ export default function SignUpScreen() {
       setTimeout(() => {
         setIsLoading(false);
         setCurrentStep(SignupStep.EMAIL_VERIFICATION);
+        // Start the timer for resending code
+        setVerificationTimer(60);
+        setIsTimerRunning(true);
       }, 1500);
     } 
     else if (currentStep === SignupStep.EMAIL_VERIFICATION) {
@@ -277,12 +305,18 @@ export default function SignUpScreen() {
   };
 
   const handleResendCode = () => {
+    if (isTimerRunning) return;
+    
     setIsResendingCode(true);
     
     // Simulate API call to resend code
     setTimeout(() => {
       setIsResendingCode(false);
+      // Reset the timer
+      setVerificationTimer(60);
+      setIsTimerRunning(true);
       // Show success message
+      Alert.alert('Code Sent', 'A new verification code has been sent to your email');
     }, 1500);
   };
 
@@ -301,7 +335,7 @@ export default function SignUpScreen() {
       setContactSchoolName('');
       setContactMessage('');
       // Show success message
-      alert('Thank you! We\'ll reach out to your school to add them to our platform.');
+      Alert.alert('Thank you!', 'We\'ll reach out to your school to add them to our platform.');
     }, 1500);
   };
 
@@ -358,14 +392,15 @@ export default function SignUpScreen() {
           </View>
 
           {searchQuery.trim() !== '' && (
-            <FlatList
-              data={filteredUniversities}
-              renderItem={renderUniversityItem}
-              keyExtractor={(item) => item.id}
+            <ScrollView
+              data-testid="universities-list"
               style={styles.universitiesList}
               contentContainerStyle={styles.universitiesListContent}
               showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
+            >
+              {filteredUniversities.length > 0 ? (
+                filteredUniversities.map(university => renderUniversityItem({ item: university }))
+              ) : (
                 <View style={styles.emptyState}>
                   <Text style={[styles.emptyStateText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
                     No universities found matching "{searchQuery}"
@@ -378,8 +413,8 @@ export default function SignUpScreen() {
                     <Text style={styles.contactButtonText}>Contact Us to Add Your School</Text>
                   </TouchableOpacity>
                 </View>
-              }
-            />
+              )}
+            </ScrollView>
           )}
         </>
       ) : (
@@ -476,19 +511,40 @@ export default function SignUpScreen() {
             ))}
           </View>
           
-          <TouchableOpacity 
-            style={styles.resendButton}
-            onPress={handleResendCode}
-            disabled={isResendingCode}
-          >
-            {isResendingCode ? (
-              <ActivityIndicator size="small" color={isDark ? '#60A5FA' : '#3B82F6'} />
-            ) : (
-              <Text style={[styles.resendButtonText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-                Resend Code
+          <View style={styles.resendContainer}>
+            {isTimerRunning ? (
+              <Text style={[styles.timerText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                Resend code in {verificationTimer}s
               </Text>
+            ) : (
+              <TouchableOpacity 
+                style={styles.resendButton}
+                onPress={handleResendCode}
+                disabled={isResendingCode || isTimerRunning}
+              >
+                {isResendingCode ? (
+                  <Text style={[styles.resendButtonText, { color: isDark ? '#60A5FA' : '#3B82F6', opacity: 0.7 }]}>
+                    Sending...
+                  </Text>
+                ) : (
+                  <Text style={[styles.resendButtonText, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                    Resend Code
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </View>
+          
+          <View style={styles.emailChangeContainer}>
+            <Text style={[styles.emailChangeText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Didn't receive the code? Check your spam folder or
+            </Text>
+            <TouchableOpacity onPress={() => setCurrentStep(SignupStep.UNIVERSITY_SELECTION)}>
+              <Text style={[styles.emailChangeLink, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                try a different email
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
@@ -759,221 +815,232 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        {renderCurrentStep()}
-
-        {/* Progress Indicator */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: `${(currentStep / 4) * 100}%`,
-                  backgroundColor: '#3B82F6'
-                }
-              ]}
-            />
-          </View>
-          <View style={styles.stepIndicators}>
-            {[1, 2, 3, 4].map((step) => (
-              <View 
-                key={step}
-                style={[
-                  styles.stepIndicator,
-                  { 
-                    backgroundColor: currentStep >= step ? 
-                      '#3B82F6' : 
-                      (isDark ? '#374151' : '#E5E7EB'),
-                    borderColor: currentStep === step ? '#3B82F6' : 'transparent',
-                    borderWidth: currentStep === step ? 2 : 0,
-                  }
-                ]}
-              >
-                {currentStep > step && (
-                  <Text style={styles.stepCheckmark}>✓</Text>
-                )}
-                {currentStep === step && (
-                  <Text style={styles.stepNumber}>{step}</Text>
-                )}
-              </View>
-            ))}
-          </View>
-          <View style={styles.stepLabels}>
-            <Text style={[
-              styles.stepLabel, 
-              { color: currentStep >= 1 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
-            ]}>
-              School
-            </Text>
-            <Text style={[
-              styles.stepLabel, 
-              { color: currentStep >= 2 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
-            ]}>
-              Verify
-            </Text>
-            <Text style={[
-              styles.stepLabel, 
-              { color: currentStep >= 3 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
-            ]}>
-              Profile
-            </Text>
-            <Text style={[
-              styles.stepLabel, 
-              { color: currentStep >= 4 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
-            ]}>
-              Password
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            { 
-              backgroundColor: isContinueEnabled() ? 
-                '#3B82F6' : 
-                (isDark ? '#374151' : '#E5E7EB'),
-              opacity: isContinueEnabled() ? 1 : 0.5
-            }
-          ]}
-          onPress={handleContinue}
-          disabled={!isContinueEnabled() || isLoading}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Text style={[
-                styles.continueButtonText,
-                { 
-                  color: isContinueEnabled() ? 
-                    '#FFFFFF' : 
-                    (isDark ? '#9CA3AF' : '#6B7280')
-                }
-              ]}>
-                {currentStep === SignupStep.PASSWORD_CREATION ? 'Create Account' : 'Continue'}
-              </Text>
-              <ArrowRight size={20} color={
-                isContinueEnabled() ? 
-                  '#FFFFFF' : 
-                  (isDark ? '#9CA3AF' : '#6B7280')
-              } />
-            </>
-          )}
-        </TouchableOpacity>
+          {renderCurrentStep()}
 
-        <View style={styles.signInLinkContainer}>
-          <Text style={[styles.signInText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Already have an account?
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/')}>
-            <Text style={[styles.signInLink, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-              Sign In
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Contact Modal */}
-        {showContactModal && (
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                  Add Your School
-                </Text>
-                <TouchableOpacity onPress={() => setShowContactModal(false)}>
-                  <X size={24} color={isDark ? '#E5E7EB' : '#4B5563'} />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={[styles.modalDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                We'll reach out to your school's administration to add them to our platform.
-              </Text>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  Your Email
-                </Text>
-                <TextInput
-                  style={[
-                    styles.formInput,
-                    { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-                  ]}
-                  placeholder="your.email@example.com"
-                  placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                  value={contactEmail}
-                  onChangeText={setContactEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  School Name
-                </Text>
-                <TextInput
-                  style={[
-                    styles.formInput,
-                    { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-                  ]}
-                  placeholder="University name"
-                  placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                  value={contactSchoolName}
-                  onChangeText={setContactSchoolName}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-                  Additional Information (Optional)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.formTextarea,
-                    { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
-                  ]}
-                  placeholder="Any additional details about your school..."
-                  placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-                  value={contactMessage}
-                  onChangeText={setContactMessage}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <TouchableOpacity
+          {/* Progress Indicator */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressTrack}>
+              <View 
                 style={[
-                  styles.submitButton,
+                  styles.progressFill, 
                   { 
-                    backgroundColor: contactEmail.trim() && contactSchoolName.trim() ? 
-                      '#3B82F6' : 
-                      (isDark ? '#374151' : '#E5E7EB'),
-                    opacity: contactEmail.trim() && contactSchoolName.trim() ? 1 : 0.5
+                    width: `${(currentStep / 4) * 100}%`,
+                    backgroundColor: '#3B82F6'
                   }
                 ]}
-                onPress={handleSubmitContact}
-                disabled={!contactEmail.trim() || !contactSchoolName.trim() || isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={[
-                    styles.submitButtonText,
+              />
+            </View>
+            <View style={styles.stepIndicators}>
+              {[1, 2, 3, 4].map((step) => (
+                <View 
+                  key={step}
+                  style={[
+                    styles.stepIndicator,
                     { 
-                      color: contactEmail.trim() && contactSchoolName.trim() ? 
-                        '#FFFFFF' : 
-                        (isDark ? '#9CA3AF' : '#6B7280')
+                      backgroundColor: currentStep >= step ? 
+                        '#3B82F6' : 
+                        (isDark ? '#374151' : '#E5E7EB'),
+                      borderColor: currentStep === step ? '#3B82F6' : 'transparent',
+                      borderWidth: currentStep === step ? 2 : 0,
                     }
-                  ]}>
-                    Submit Request
-                  </Text>
-                )}
-              </TouchableOpacity>
+                  ]}
+                >
+                  {currentStep > step && (
+                    <Text style={styles.stepCheckmark}>✓</Text>
+                  )}
+                  {currentStep === step && (
+                    <Text style={styles.stepNumber}>{step}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+            <View style={styles.stepLabels}>
+              <Text style={[
+                styles.stepLabel, 
+                { color: currentStep >= 1 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
+              ]}>
+                School
+              </Text>
+              <Text style={[
+                styles.stepLabel, 
+                { color: currentStep >= 2 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
+              ]}>
+                Verify
+              </Text>
+              <Text style={[
+                styles.stepLabel, 
+                { color: currentStep >= 3 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
+              ]}>
+                Profile
+              </Text>
+              <Text style={[
+                styles.stepLabel, 
+                { color: currentStep >= 4 ? '#3B82F6' : (isDark ? '#9CA3AF' : '#6B7280') }
+              ]}>
+                Password
+              </Text>
             </View>
           </View>
-        )}
+
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              { 
+                backgroundColor: isContinueEnabled() ? 
+                  '#3B82F6' : 
+                  (isDark ? '#374151' : '#E5E7EB'),
+                opacity: isContinueEnabled() ? 1 : 0.5
+              }
+            ]}
+            onPress={handleContinue}
+            disabled={!isContinueEnabled() || isLoading}
+          >
+            {isLoading ? (
+              <Text style={[
+                styles.continueButtonText,
+                { color: '#FFFFFF' }
+              ]}>
+                {currentStep === SignupStep.PASSWORD_CREATION ? 'Creating Account...' : 'Processing...'}
+              </Text>
+            ) : (
+              <>
+                <Text style={[
+                  styles.continueButtonText,
+                  { 
+                    color: isContinueEnabled() ? 
+                      '#FFFFFF' : 
+                      (isDark ? '#9CA3AF' : '#6B7280')
+                  }
+                ]}>
+                  {currentStep === SignupStep.PASSWORD_CREATION ? 'Create Account' : 'Continue'}
+                </Text>
+                <ArrowRight size={20} color={
+                  isContinueEnabled() ? 
+                    '#FFFFFF' : 
+                    (isDark ? '#9CA3AF' : '#6B7280')
+                } />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.signInLinkContainer}>
+            <Text style={[styles.signInText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Already have an account?
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/')}>
+              <Text style={[styles.signInLink, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                Sign In
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Contact Modal */}
+          {showContactModal && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Add Your School
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowContactModal(false)}>
+                    <X size={24} color={isDark ? '#E5E7EB' : '#4B5563'} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.modalDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  We'll reach out to your school's administration to add them to our platform.
+                </Text>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                    Your Email
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.formInput,
+                      { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
+                    ]}
+                    placeholder="your.email@example.com"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={contactEmail}
+                    onChangeText={setContactEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                    School Name
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.formInput,
+                      { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
+                    ]}
+                    placeholder="University name"
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={contactSchoolName}
+                    onChangeText={setContactSchoolName}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.formLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                    Additional Information (Optional)
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.formTextarea,
+                      { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', color: isDark ? '#E5E7EB' : '#1F2937', borderColor: isDark ? '#374151' : '#E5E7EB', ...Platform.select({ web: { outlineStyle: 'none' } }) }
+                    ]}
+                    placeholder="Any additional details about your school..."
+                    placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+                    value={contactMessage}
+                    onChangeText={setContactMessage}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.submitButton,
+                    { 
+                      backgroundColor: contactEmail.trim() && contactSchoolName.trim() ? 
+                        '#3B82F6' : 
+                        (isDark ? '#374151' : '#E5E7EB'),
+                      opacity: contactEmail.trim() && contactSchoolName.trim() ? 1 : 0.5
+                    }
+                  ]}
+                  onPress={handleSubmitContact}
+                  disabled={!contactEmail.trim() || !contactSchoolName.trim() || isLoading}
+                >
+                  {isLoading ? (
+                    <Text style={styles.submitButtonText}>Submitting...</Text>
+                  ) : (
+                    <Text style={[
+                      styles.submitButtonText,
+                      { 
+                        color: contactEmail.trim() && contactSchoolName.trim() ? 
+                          '#FFFFFF' : 
+                          (isDark ? '#9CA3AF' : '#6B7280')
+                      }
+                    ]}>
+                      Submit Request
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -985,7 +1052,12 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   stepContainer: {
     flex: 1,
@@ -1040,6 +1112,7 @@ const styles = StyleSheet.create({
   },
   universitiesList: {
     flex: 1,
+    maxHeight: 300,
   },
   universitiesListContent: {
     paddingBottom: 20,
@@ -1316,6 +1389,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
   },
   verificationContainer: {
     flex: 1,
@@ -1366,13 +1440,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     textAlign: 'center',
   },
+  resendContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   resendButton: {
-    alignSelf: 'center',
     padding: 8,
   },
   resendButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
+  },
+  timerText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+  },
+  emailChangeContainer: {
+    alignItems: 'center',
+  },
+  emailChangeText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  emailChangeLink: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    marginTop: 4,
   },
   profileContainer: {
     flex: 1,
