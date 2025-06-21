@@ -324,7 +324,10 @@ export default function SignUpScreen() {
           <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
             <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
             <TextInput
-              style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+              style={[
+                styles.searchInput, 
+                { color: isDark ? '#E5E7EB' : '#1F2937' }
+              ]}
               placeholder="Search for your university..."
               placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               value={searchQuery}
@@ -392,7 +395,10 @@ export default function SignUpScreen() {
                 { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }
               ]}>
                 <TextInput
-                  style={[styles.emailInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+                  style={[
+                    styles.emailInput, 
+                    { color: isDark ? '#E5E7EB' : '#1F2937' }
+                  ]}
                   placeholder={`yourname@${selectedUniversity.domain}`}
                   placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
                   value={email}
@@ -563,7 +569,10 @@ export default function SignUpScreen() {
             ]}>
               <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
               <TextInput
-                style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+                style={[
+                  styles.passwordInput, 
+                  { color: isDark ? '#E5E7EB' : '#1F2937' }
+                ]}
                 placeholder="Create a password"
                 placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
                 value={password}
@@ -611,7 +620,10 @@ export default function SignUpScreen() {
             ]}>
               <Key size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
               <TextInput
-                style={[styles.passwordInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+                style={[
+                  styles.passwordInput, 
+                  { color: isDark ? '#E5E7EB' : '#1F2937' }
+                ]}
                 placeholder="Confirm your password"
                 placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
                 value={confirmPassword}
