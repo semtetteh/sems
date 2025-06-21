@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key } from 'lucide-react-native';
@@ -755,7 +755,7 @@ export default function SignUpScreen() {
           {isLoading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <View style={styles.continueButtonContent}>
+            <>
               <Text style={[
                 styles.continueButtonText,
                 { 
@@ -771,7 +771,7 @@ export default function SignUpScreen() {
                   '#FFFFFF' : 
                   (isDark ? '#9CA3AF' : '#6B7280')
               } />
-            </View>
+            </>
           )}
         </TouchableOpacity>
 
@@ -1075,10 +1075,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     marginTop: 24,
-  },
-  continueButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
   continueButtonText: {
