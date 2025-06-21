@@ -13,18 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Key, 
-  User, 
-  Calendar, 
-  ArrowRight, 
-  GraduationCap,
-  CheckCircle,
-  ArrowLeft
-} from 'lucide-react-native';
+import { Eye, EyeOff, Mail, Key, User, Calendar, ArrowRight, GraduationCap, CircleCheck as CheckCircle, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
