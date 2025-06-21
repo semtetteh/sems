@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key, GraduationCap, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { Search, ArrowRight, Mail, X, Eye, EyeOff, Key, GraduationCap, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 interface University {
