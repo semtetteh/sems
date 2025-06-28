@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, User, Camera, AtSign, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, User, Camera, AtSign, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
