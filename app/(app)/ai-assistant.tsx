@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwipeGestureWrapper } from '@/components/SwipeGestureWrapper';
 import { useTheme } from '@/context/ThemeContext';
 import { Send, Mic, Camera, Paperclip, Bot, Lightbulb, BookOpen, FileText, Sparkles, X, ChevronDown, ChevronUp, Clock, Bookmark, Share2, ThumbsUp, ThumbsDown, Copy, MoreVertical } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, SlideInRight, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay } from 'react-native-reanimated';
 
 interface Message {
   id: string;
@@ -25,6 +25,29 @@ interface Suggestion {
   text: string;
   icon: React.ReactNode;
 }
+
+const LoadingDot = ({ delay }: { delay: number }) => {
+  const opacity = useSharedValue(0.3);
+
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration: 600 }),
+        -1,
+        true
+      )
+    );
+  }, [delay, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[styles.loadingDot, animatedStyle]} />
+  );
+};
 
 export default function AIAssistantScreen() {
   const { isDark } = useTheme();
@@ -327,26 +350,9 @@ export default function AIAssistantScreen() {
                   {message.isLoading ? (
                     <View style={styles.loadingContainer}>
                       <View style={styles.loadingDots}>
-                        <Animated.View 
-                          style={[
-                            styles.loadingDot, 
-                            { backgroundColor: isDark ? '#60A5FA' : '#3B82F6' }
-                          ]} 
-                        />
-                        <Animated.View 
-                          style={[
-                            styles.loadingDot, 
-                            { backgroundColor: isDark ? '#60A5FA' : '#3B82F6' },
-                            { animationDelay: '0.2s' }
-                          ]} 
-                        />
-                        <Animated.View 
-                          style={[
-                            styles.loadingDot, 
-                            { backgroundColor: isDark ? '#60A5FA' : '#3B82F6' },
-                            { animationDelay: '0.4s' }
-                          ]} 
-                        />
+                        <LoadingDot delay={0} />
+                        <LoadingDot delay={200} />
+                        <LoadingDot delay={400} />
                       </View>
                       <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
                         Thinking...
@@ -822,7 +828,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    opacity: 0.6,
+    backgroundColor: '#3B82F6',
   },
   loadingText: {
     fontSize: 14,
