@@ -1,21 +1,28 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Mail, Key, ArrowRight, GraduationCap } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SignInScreen() {
   const { isDark } = useTheme();
+  const { signIn, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSignIn = () => {
-    setError('');
-    
+  useEffect(() => {
+    // Clear error when user types
+    if (error && (email || password)) {
+      setError('');
+    }
+  }, [email, password]);
+
+  const handleSignIn = async () => {
     if (!email.trim()) {
       setError('Please enter your email');
       return;
@@ -28,11 +35,20 @@ export default function SignInScreen() {
     
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const { error: signInError } = await signIn(email, password);
+      
+      if (signInError) {
+        setError(signInError.message || 'Invalid email or password');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Navigation is handled in the signIn function
+    } catch (err) {
+      setError('An unexpected error occurred');
       setIsLoading(false);
-      router.replace('/(app)');
-    }, 1500);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -159,7 +175,7 @@ export default function SignInScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <Text style={styles.signInButtonText}>Signing In...</Text>
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <View style={styles.signInButtonContent}>
                   <Text style={styles.signInButtonText}>Sign In</Text>
