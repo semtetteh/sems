@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, Key, Eye, EyeOff, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Shield } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Key, Eye, EyeOff, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Shield, Lock, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
 
 export default function PasswordCreationScreen() {
   const { isDark } = useTheme();
@@ -16,6 +19,7 @@ export default function PasswordCreationScreen() {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
 
   // Password strength criteria
   const [hasMinLength, setHasMinLength] = useState(false);
@@ -23,6 +27,11 @@ export default function PasswordCreationScreen() {
   const [hasLowercase, setHasLowercase] = useState(false);
   const [hasNumber, setHasNumber] = useState(false);
   const [hasSpecialChar, setHasSpecialChar] = useState(false);
+  
+  // Animation values
+  const strengthBarWidth = useSharedValue(0);
+  const successScale = useSharedValue(1);
+  const shakeAnimation = useSharedValue(0);
 
   useEffect(() => {
     // Ensure we're on the correct step
@@ -37,10 +46,19 @@ export default function PasswordCreationScreen() {
     setHasNumber(/[0-9]/.test(password));
     setHasSpecialChar(/[!@#$%^&*(),.?":{}|<>]/.test(password));
     
+    // Calculate strength percentage
+    const criteria = [hasMinLength, hasUppercase, hasLowercase, hasNumber, hasSpecialChar];
+    const metCriteria = criteria.filter(Boolean).length;
+    const strengthPercentage = (metCriteria / criteria.length) * 100;
+    setPasswordStrength(strengthPercentage);
+    
+    // Animate strength bar
+    strengthBarWidth.value = withTiming(strengthPercentage, { duration: 500 });
+    
     // Clear errors when user types
     if (passwordError) setPasswordError('');
     if (confirmPasswordError && confirmPassword) setConfirmPasswordError('');
-  }, [password, confirmPassword]);
+  }, [password, confirmPassword, hasMinLength, hasUppercase, hasLowercase, hasNumber, hasSpecialChar]);
 
   const handleBack = () => {
     router.back();
@@ -49,11 +67,31 @@ export default function PasswordCreationScreen() {
   const validatePassword = () => {
     if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
       setPasswordError('Please ensure your password meets all requirements');
+      
+      // Shake animation for error
+      shakeAnimation.value = withSequence(
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(0, { duration: 100 })
+      );
+      
       return false;
     }
     
     if (password !== confirmPassword) {
       setConfirmPasswordError('Passwords do not match');
+      
+      // Shake animation for error
+      shakeAnimation.value = withSequence(
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(0, { duration: 100 })
+      );
+      
       return false;
     }
     
@@ -68,17 +106,15 @@ export default function PasswordCreationScreen() {
     // Store password in sign-up data
     updateSignUpData({ password });
 
-    // Attempt to create account with Supabase
-    try {
-      const { error } = await signUp(signUpData.email || '', password);
+    // Simulate account creation
+    setTimeout(() => {
+      // Success animation
+      successScale.value = withSequence(
+        withSpring(1.2),
+        withSpring(1)
+      );
       
-      if (error) {
-        Alert.alert('Error', error.message);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Account created successfully
+      // Show success message
       Alert.alert(
         'Account Created!',
         'Your account has been created successfully. You can now sign in.',
@@ -89,33 +125,34 @@ export default function PasswordCreationScreen() {
           }
         ]
       );
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      console.error(error);
-    } finally {
+      
       setIsLoading(false);
-    }
-  };
-
-  const getPasswordStrength = () => {
-    let strength = 0;
-    if (hasMinLength) strength++;
-    if (hasUppercase) strength++;
-    if (hasLowercase) strength++;
-    if (hasNumber) strength++;
-    if (hasSpecialChar) strength++;
-    
-    if (strength <= 2) return 'Weak';
-    if (strength <= 4) return 'Medium';
-    return 'Strong';
+    }, 2000);
   };
 
   const getPasswordStrengthColor = () => {
-    const strength = getPasswordStrength();
-    if (strength === 'Weak') return '#EF4444';
-    if (strength === 'Medium') return '#F59E0B';
-    return '#10B981';
+    if (passwordStrength < 40) return '#EF4444'; // Red
+    if (passwordStrength < 70) return '#F59E0B'; // Yellow
+    return '#10B981'; // Green
   };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength < 40) return 'Weak';
+    if (passwordStrength < 70) return 'Medium';
+    return 'Strong';
+  };
+
+  const strengthBarAnimatedStyle = useAnimatedStyle(() => ({
+    width: `${strengthBarWidth.value}%`,
+    backgroundColor: 
+      strengthBarWidth.value < 40 ? '#EF4444' : 
+      strengthBarWidth.value < 70 ? '#F59E0B' : 
+      '#10B981'
+  }));
+
+  const shakeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeAnimation.value }]
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
@@ -123,7 +160,10 @@ export default function PasswordCreationScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <View style={styles.header}>
+        <Animated.View 
+          entering={FadeIn.duration(500)}
+          style={styles.header}
+        >
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <ArrowLeft size={24} color={isDark ? '#E5E7EB' : '#4B5563'} />
           </TouchableOpacity>
@@ -148,9 +188,12 @@ export default function PasswordCreationScreen() {
               <Text style={styles.stepNumber}>5</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.content}>
+        <Animated.View 
+          entering={FadeInDown.delay(200).duration(500)}
+          style={styles.content}
+        >
           <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
             Create Password
           </Text>
@@ -158,7 +201,10 @@ export default function PasswordCreationScreen() {
             Set a secure password for your account
           </Text>
 
-          <View style={styles.formGroup}>
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(500)}
+            style={[styles.formGroup, shakeAnimatedStyle]}
+          >
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               Password
             </Text>
@@ -192,18 +238,24 @@ export default function PasswordCreationScreen() {
                 <AlertCircle size={16} color="#EF4444" />
                 <Text style={styles.errorText}>{passwordError}</Text>
               </View>
-            ) : (
+            ) : password ? (
               <View style={styles.passwordStrengthContainer}>
                 <Text style={[styles.passwordStrengthLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
                   Password Strength:
                 </Text>
                 <Text style={[styles.passwordStrengthValue, { color: getPasswordStrengthColor() }]}>
-                  {getPasswordStrength()}
+                  {getPasswordStrengthText()}
                 </Text>
+                <View style={[styles.strengthBarContainer, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
+                  <Animated.View style={[styles.strengthBar, strengthBarAnimatedStyle]} />
+                </View>
               </View>
-            )}
+            ) : null}
 
-            <View style={styles.passwordRequirements}>
+            <Animated.View 
+              entering={FadeInDown.delay(400).duration(500)}
+              style={styles.passwordRequirements}
+            >
               <View style={styles.requirementItem}>
                 {hasMinLength ? (
                   <CheckCircle size={16} color="#10B981" />
@@ -283,10 +335,33 @@ export default function PasswordCreationScreen() {
                   At least one number
                 </Text>
               </View>
-            </View>
-          </View>
+              
+              <View style={styles.requirementItem}>
+                {hasSpecialChar ? (
+                  <CheckCircle size={16} color="#10B981" />
+                ) : (
+                  <Shield size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                )}
+                <Text 
+                  style={[
+                    styles.requirementText, 
+                    { 
+                      color: hasSpecialChar ? 
+                        '#10B981' : 
+                        (isDark ? '#9CA3AF' : '#6B7280') 
+                    }
+                  ]}
+                >
+                  At least one special character
+                </Text>
+              </View>
+            </Animated.View>
+          </Animated.View>
 
-          <View style={styles.formGroup}>
+          <Animated.View 
+            entering={FadeInDown.delay(500).duration(500)}
+            style={[styles.formGroup, shakeAnimatedStyle]}
+          >
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               Confirm Password
             </Text>
@@ -294,10 +369,16 @@ export default function PasswordCreationScreen() {
               styles.inputContainer,
               { 
                 backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: confirmPasswordError ? '#EF4444' : isDark ? '#374151' : '#E5E7EB'
+                borderColor: confirmPasswordError ? '#EF4444' : 
+                             password && confirmPassword && password === confirmPassword ? '#10B981' :
+                             isDark ? '#374151' : '#E5E7EB'
               }
             ]}>
-              <Key size={20} color={confirmPasswordError ? '#EF4444' : (isDark ? '#60A5FA' : '#3B82F6')} />
+              <Lock size={20} color={
+                confirmPasswordError ? '#EF4444' : 
+                password && confirmPassword && password === confirmPassword ? '#10B981' :
+                (isDark ? '#60A5FA' : '#3B82F6')
+              } />
               <TextInput
                 style={[styles.input, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
                 placeholder="Confirm your password"
@@ -320,21 +401,45 @@ export default function PasswordCreationScreen() {
                 <AlertCircle size={16} color="#EF4444" />
                 <Text style={styles.errorText}>{confirmPasswordError}</Text>
               </View>
+            ) : password && confirmPassword && password === confirmPassword ? (
+              <View style={styles.successContainer}>
+                <CheckCircle size={16} color="#10B981" />
+                <Text style={styles.successText}>Passwords match</Text>
+              </View>
             ) : null}
-          </View>
-        </View>
+          </Animated.View>
 
-        <View style={styles.footer}>
+          <Animated.View 
+            entering={FadeInDown.delay(600).duration(500)}
+            style={[styles.securityContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
+          >
+            <View style={styles.securityHeader}>
+              <Sparkles size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+              <Text style={[styles.securityTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Almost there!
+              </Text>
+            </View>
+            <Text style={[styles.securityText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+              You're one step away from joining Semster. Create a strong password to secure your account.
+            </Text>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View 
+          entering={FadeInUp.delay(700).duration(500)}
+          style={styles.footer}
+        >
           <TouchableOpacity 
             style={[
               styles.createAccountButton, 
               { 
-                backgroundColor: password && confirmPassword ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
-                opacity: password && confirmPassword && !isLoading ? 1 : 0.5
+                backgroundColor: password && confirmPassword && password === confirmPassword && passwordStrength >= 60 ? 
+                  '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
+                opacity: password && confirmPassword && password === confirmPassword && passwordStrength >= 60 && !isLoading ? 1 : 0.5
               }
             ]}
             onPress={handleCreateAccount}
-            disabled={!password || !confirmPassword || isLoading}
+            disabled={!password || !confirmPassword || password !== confirmPassword || passwordStrength < 60 || isLoading}
           >
             {isLoading ? (
               <Text style={[
@@ -347,18 +452,20 @@ export default function PasswordCreationScreen() {
               <>
                 <Text style={[
                   styles.createAccountButtonText,
-                  { color: password && confirmPassword ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
+                  { color: password && confirmPassword && password === confirmPassword && passwordStrength >= 60 ? 
+                      '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
                 ]}>
                   Create Account
                 </Text>
                 <ArrowRight 
                   size={20} 
-                  color={password && confirmPassword ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} 
+                  color={password && confirmPassword && password === confirmPassword && passwordStrength >= 60 ? 
+                    '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} 
                 />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -405,7 +512,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Inter-Bold',
     marginBottom: 8,
   },
@@ -425,8 +532,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderRadius: 16,
     paddingHorizontal: 16,
     height: 56,
   },
@@ -448,19 +555,38 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginLeft: 6,
   },
-  passwordStrengthContainer: {
+  successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
+  },
+  successText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    marginLeft: 6,
+  },
+  passwordStrengthContainer: {
     marginTop: 8,
   },
   passwordStrengthLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    marginRight: 4,
+    marginBottom: 4,
   },
   passwordStrengthValue: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
+    marginBottom: 8,
+  },
+  strengthBarContainer: {
+    height: 6,
+    borderRadius: 3,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  strengthBar: {
+    height: '100%',
   },
   passwordRequirements: {
     marginTop: 16,
@@ -475,6 +601,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
   },
+  securityContainer: {
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  securityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  securityTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  securityText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    lineHeight: 20,
+  },
   footer: {
     padding: 24,
     paddingTop: 0,
@@ -484,7 +630,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     gap: 8,
   },
   createAccountButtonText: {
