@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, Mail, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Mail, CircleAlert as AlertCircle, Shield } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
 
 export default function EmailVerificationScreen() {
   const { isDark } = useTheme();
@@ -13,6 +16,11 @@ export default function EmailVerificationScreen() {
   const [isValid, setIsValid] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [securityTips, setSecurityTips] = useState([
+    "Use your school email for verification",
+    "We'll never share your email with third parties",
+    "Your data is encrypted and secure"
+  ]);
 
   useEffect(() => {
     // Ensure we're on the correct step
@@ -60,7 +68,10 @@ export default function EmailVerificationScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <View style={styles.header}>
+        <Animated.View 
+          entering={FadeIn.duration(500)}
+          style={styles.header}
+        >
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <ArrowLeft size={24} color={isDark ? '#E5E7EB' : '#4B5563'} />
           </TouchableOpacity>
@@ -85,9 +96,12 @@ export default function EmailVerificationScreen() {
               <Text style={[styles.stepNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>5</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.content}>
+        <Animated.View 
+          entering={FadeInDown.delay(200).duration(500)}
+          style={styles.content}
+        >
           <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
             Verify Your Email
           </Text>
@@ -95,7 +109,10 @@ export default function EmailVerificationScreen() {
             Enter your school email address to receive a verification code
           </Text>
 
-          <View style={styles.formGroup}>
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(500)}
+            style={styles.formGroup}
+          >
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               School Email
             </Text>
@@ -128,19 +145,50 @@ export default function EmailVerificationScreen() {
                 We'll send a verification code to this email
               </Text>
             )}
-          </View>
+          </Animated.View>
 
-          <View style={styles.schoolInfo}>
+          <Animated.View 
+            entering={FadeInDown.delay(400).duration(500)}
+            style={styles.schoolInfo}
+          >
             <Text style={[styles.schoolInfoLabel, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               Selected School:
             </Text>
             <Text style={[styles.schoolName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
               {signUpData.school || 'University of Ghana'}
             </Text>
-          </View>
-        </View>
+          </Animated.View>
 
-        <View style={styles.footer}>
+          <Animated.View 
+            entering={FadeInDown.delay(500).duration(500)}
+            style={[styles.securityContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
+          >
+            <View style={styles.securityHeader}>
+              <Shield size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
+              <Text style={[styles.securityTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Security & Privacy
+              </Text>
+            </View>
+            
+            {securityTips.map((tip, index) => (
+              <Animated.View 
+                key={index}
+                entering={SlideInRight.delay(600 + (index * 100)).duration(500)}
+                style={styles.securityTip}
+              >
+                <View style={styles.bulletPoint} />
+                <Text style={[styles.securityTipText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                  {tip}
+                </Text>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View 
+          entering={FadeInUp.delay(600).duration(500)}
+          style={styles.footer}
+        >
           <TouchableOpacity 
             style={[
               styles.continueButton, 
@@ -171,7 +219,7 @@ export default function EmailVerificationScreen() {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -218,7 +266,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Inter-Bold',
     marginBottom: 8,
   },
@@ -239,7 +287,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 16,
     height: 56,
   },
@@ -267,6 +315,7 @@ const styles = StyleSheet.create({
   },
   schoolInfo: {
     marginTop: 32,
+    marginBottom: 32,
   },
   schoolInfoLabel: {
     fontSize: 14,
@@ -274,8 +323,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   schoolName: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+  },
+  securityContainer: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  securityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  securityTitle: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+  securityTip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bulletPoint: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
+    marginRight: 8,
+  },
+  securityTipText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
   },
   footer: {
     padding: 24,
@@ -286,7 +366,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     gap: 8,
   },
   continueButtonText: {

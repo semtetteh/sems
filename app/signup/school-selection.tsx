@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, Search, ArrowRight, MapPin, School } from 'lucide-react-native';
+import { ArrowLeft, Search, ArrowRight, MapPin, School, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
 
 // Mock data for schools
 const mockSchools = [
@@ -13,30 +16,35 @@ const mockSchools = [
     name: 'University of Ghana',
     location: 'Accra, Ghana',
     logo: 'https://images.pexels.com/photos/267885/pexels-photo-267885.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: true,
   },
   {
     id: '2',
     name: 'Kwame Nkrumah University of Science and Technology',
     location: 'Kumasi, Ghana',
     logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
   },
   {
     id: '3',
     name: 'University of Cape Coast',
     location: 'Cape Coast, Ghana',
     logo: 'https://images.pexels.com/photos/207692/pexels-photo-207692.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: true,
   },
   {
     id: '4',
     name: 'Ashesi University',
     location: 'Berekuso, Ghana',
     logo: 'https://images.pexels.com/photos/256520/pexels-photo-256520.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
   },
   {
     id: '5',
     name: 'Ghana Institute of Management and Public Administration',
     location: 'Accra, Ghana',
     logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
   },
 ];
 
@@ -47,10 +55,14 @@ export default function SchoolSelectionScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [schools, setSchools] = useState(mockSchools);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
+  const [featuredSchools, setFeaturedSchools] = useState<typeof mockSchools>([]);
 
   useEffect(() => {
     // Ensure we're on the correct step
     setCurrentStep(1);
+    
+    // Set featured schools
+    setFeaturedSchools(mockSchools.filter(school => school.featured));
   }, []);
 
   useEffect(() => {
@@ -85,36 +97,49 @@ export default function SchoolSelectionScreen() {
     }
   };
 
-  const renderSchoolItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.schoolCard,
-        { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
-        selectedSchool === item.id && { borderColor: '#3B82F6', borderWidth: 2 }
-      ]}
-      onPress={() => setSelectedSchool(item.id)}
+  const renderSchoolItem = ({ item, index }) => (
+    <Animated.View
+      entering={FadeInUp.delay(index * 100).duration(400)}
     >
-      <Image source={{ uri: item.logo }} style={styles.schoolLogo} />
-      <View style={styles.schoolInfo}>
-        <Text 
-          style={[styles.schoolName, { color: isDark ? '#FFFFFF' : '#111827' }]}
-          numberOfLines={2}
-        >
-          {item.name}
-        </Text>
-        <View style={styles.locationContainer}>
-          <MapPin size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          <Text style={[styles.schoolLocation, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {item.location}
+      <TouchableOpacity
+        style={[
+          styles.schoolCard,
+          { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
+          selectedSchool === item.id && { borderColor: '#3B82F6', borderWidth: 2 }
+        ]}
+        onPress={() => setSelectedSchool(item.id)}
+      >
+        <Image source={{ uri: item.logo }} style={styles.schoolLogo} />
+        <View style={styles.schoolInfo}>
+          <Text 
+            style={[styles.schoolName, { color: isDark ? '#FFFFFF' : '#111827' }]}
+            numberOfLines={2}
+          >
+            {item.name}
           </Text>
+          <View style={styles.locationContainer}>
+            <MapPin size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            <Text style={[styles.schoolLocation, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              {item.location}
+            </Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+        {item.featured && (
+          <View style={styles.featuredBadge}>
+            <Sparkles size={12} color="#FFFFFF" />
+            <Text style={styles.featuredText}>Featured</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
-      <View style={styles.header}>
+      <Animated.View 
+        entering={FadeIn.duration(500)}
+        style={styles.header}
+      >
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <ArrowLeft size={24} color={isDark ? '#E5E7EB' : '#4B5563'} />
         </TouchableOpacity>
@@ -139,9 +164,12 @@ export default function SchoolSelectionScreen() {
             <Text style={[styles.stepNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>5</Text>
           </View>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.content}>
+      <Animated.View 
+        entering={FadeInDown.delay(200).duration(500)}
+        style={styles.content}
+      >
         <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
           Select Your School
         </Text>
@@ -149,7 +177,10 @@ export default function SchoolSelectionScreen() {
           Connect with your campus community
         </Text>
 
-        <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+        <Animated.View 
+          entering={FadeInDown.delay(300).duration(500)}
+          style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
+        >
           <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
           <TextInput
             style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
@@ -158,31 +189,62 @@ export default function SchoolSelectionScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-        </View>
+        </Animated.View>
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-          </View>
-        ) : schools.length > 0 ? (
-          <FlatList
-            data={schools}
-            renderItem={renderSchoolItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.schoolsList}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <School size={48} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            <Text style={[styles.emptyStateText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-              No schools found matching "{searchQuery}"
+        {featuredSchools.length > 0 && !searchQuery && (
+          <Animated.View 
+            entering={FadeInDown.delay(400).duration(500)}
+            style={styles.featuredSection}
+          >
+            <Text style={[styles.featuredTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              Featured Schools
             </Text>
-          </View>
+            <FlatList
+              data={featuredSchools}
+              renderItem={renderSchoolItem}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredList}
+            />
+          </Animated.View>
         )}
-      </View>
 
-      <View style={styles.footer}>
+        <Animated.View 
+          entering={FadeInDown.delay(500).duration(500)}
+          style={styles.allSchoolsSection}
+        >
+          <Text style={[styles.allSchoolsTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            {searchQuery ? 'Search Results' : 'All Schools'}
+          </Text>
+          
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#3B82F6" />
+            </View>
+          ) : schools.length > 0 ? (
+            <FlatList
+              data={schools}
+              renderItem={renderSchoolItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.schoolsList}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <School size={48} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.emptyStateText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                No schools found matching "{searchQuery}"
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      <Animated.View 
+        entering={FadeInUp.delay(600).duration(500)}
+        style={styles.footer}
+      >
         <TouchableOpacity 
           style={[
             styles.continueButton, 
@@ -202,7 +264,7 @@ export default function SchoolSelectionScreen() {
           </Text>
           <ArrowRight size={20} color={selectedSchool ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -248,7 +310,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Inter-Bold',
     marginBottom: 8,
   },
@@ -261,8 +323,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 12,
+    height: 56,
+    borderRadius: 16,
     marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: {
@@ -279,6 +341,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
   },
+  featuredSection: {
+    marginBottom: 24,
+  },
+  featuredTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 12,
+  },
+  featuredList: {
+    paddingRight: 16,
+  },
+  allSchoolsSection: {
+    flex: 1,
+  },
+  allSchoolsTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 12,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -290,7 +371,7 @@ const styles = StyleSheet.create({
   schoolCard: {
     flexDirection: 'row',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -301,11 +382,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     alignItems: 'center',
+    position: 'relative',
   },
   schoolLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     marginRight: 16,
   },
   schoolInfo: {
@@ -324,6 +406,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     marginLeft: 4,
+  },
+  featuredBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  featuredText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
   },
   emptyState: {
     flex: 1,
@@ -347,7 +446,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     gap: 8,
   },
   continueButtonText: {

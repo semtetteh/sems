@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { GraduationCap, ArrowRight } from 'lucide-react-native';
+import { GraduationCap, ArrowRight, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
 
 export default function SignUpIntroScreen() {
   const { isDark } = useTheme();
@@ -26,7 +29,10 @@ export default function SignUpIntroScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
+        <Animated.View 
+          entering={FadeInDown.delay(300).duration(800)}
+          style={styles.logoContainer}
+        >
           <View style={[styles.logoCircle, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
             <GraduationCap size={48} color={isDark ? '#60A5FA' : '#3B82F6'} />
           </View>
@@ -36,70 +42,75 @@ export default function SignUpIntroScreen() {
           <Text style={[styles.tagline, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
             Connect. Learn. Thrive.
           </Text>
-        </View>
+        </Animated.View>
 
         <View style={styles.featuresContainer}>
-          <View style={[styles.featureCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: '#EFF6FF' }]}>
-              <GraduationCap size={24} color="#3B82F6" />
-            </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={[styles.featureTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Campus Community
-              </Text>
-              <Text style={[styles.featureDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Connect with students and faculty at your school
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.featureCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: '#F0FDF4' }]}>
-              <GraduationCap size={24} color="#10B981" />
-            </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={[styles.featureTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Academic Resources
-              </Text>
-              <Text style={[styles.featureDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Access study materials and collaborate on projects
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.featureCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: '#FEF3C7' }]}>
-              <GraduationCap size={24} color="#F59E0B" />
-            </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={[styles.featureTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Campus Events
-              </Text>
-              <Text style={[styles.featureDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Stay updated on events and activities on campus
-              </Text>
-            </View>
-          </View>
+          {[
+            {
+              icon: <Sparkles size={24} color="#FFFFFF" />,
+              title: "Campus Community",
+              description: "Connect with students and faculty at your school",
+              color: "#3B82F6",
+              delay: 400
+            },
+            {
+              icon: <Sparkles size={24} color="#FFFFFF" />,
+              title: "Academic Resources",
+              description: "Access study materials and collaborate on projects",
+              color: "#10B981",
+              delay: 600
+            },
+            {
+              icon: <Sparkles size={24} color="#FFFFFF" />,
+              title: "Campus Events",
+              description: "Stay updated on events and activities on campus",
+              color: "#F59E0B",
+              delay: 800
+            }
+          ].map((feature, index) => (
+            <Animated.View 
+              key={index}
+              entering={FadeInRight.delay(feature.delay).duration(800)}
+              style={[styles.featureCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
+            >
+              <View style={[styles.featureIconContainer, { backgroundColor: feature.color }]}>
+                {feature.icon}
+              </View>
+              <View style={styles.featureTextContainer}>
+                <Text style={[styles.featureTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  {feature.title}
+                </Text>
+                <Text style={[styles.featureDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  {feature.description}
+                </Text>
+              </View>
+            </Animated.View>
+          ))}
         </View>
 
-        <TouchableOpacity 
-          style={[styles.getStartedButton, { backgroundColor: '#3B82F6' }]}
-          onPress={handleGetStarted}
+        <Animated.View 
+          entering={FadeInDown.delay(1000).duration(800)}
+          style={styles.buttonContainer}
         >
-          <Text style={styles.getStartedText}>Get Started</Text>
-          <ArrowRight size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.signInContainer}>
-          <Text style={[styles.signInText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
-            Already have an account?
-          </Text>
-          <TouchableOpacity onPress={handleSignIn}>
-            <Text style={[styles.signInLink, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-              Sign In
-            </Text>
+          <TouchableOpacity 
+            style={[styles.getStartedButton, { backgroundColor: '#3B82F6' }]}
+            onPress={handleGetStarted}
+          >
+            <Text style={styles.getStartedText}>Get Started</Text>
+            <ArrowRight size={20} color="#FFFFFF" />
           </TouchableOpacity>
-        </View>
+
+          <View style={styles.signInContainer}>
+            <Text style={[styles.signInText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+              Already have an account?
+            </Text>
+            <TouchableOpacity onPress={handleSignIn}>
+              <Text style={[styles.signInLink, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+                Sign In
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -112,11 +123,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginTop: 40,
   },
   logoCircle: {
     width: 80,
@@ -144,13 +155,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   featuresContainer: {
-    marginBottom: 48,
+    marginVertical: 40,
     gap: 16,
   },
   featureCard: {
     flexDirection: 'row',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
@@ -180,6 +191,9 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+  },
+  buttonContainer: {
+    marginBottom: 20,
   },
   getStartedButton: {
     flexDirection: 'row',
