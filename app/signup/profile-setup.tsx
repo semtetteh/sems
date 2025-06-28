@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, User, Camera, AtSign, CircleAlert as AlertCircle
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
-import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, useAnimatedStyle, useSharedValue, withSpring, withTiming, withRepeat } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +34,7 @@ export default function ProfileSetupScreen() {
   // Animation values
   const avatarScale = useSharedValue(1);
   const suggestionsHeight = useSharedValue(0);
+  const spinValue = useSharedValue(0);
 
   useEffect(() => {
     // Ensure we're on the correct step
@@ -75,6 +76,15 @@ export default function ProfileSetupScreen() {
       setIsCheckingUsername(false);
     }
   }, [username]);
+
+  useEffect(() => {
+    // Start spinning animation when checking username
+    if (isCheckingUsername) {
+      spinValue.value = withRepeat(withTiming(360, { duration: 1000 }), -1, false);
+    } else {
+      spinValue.value = 0;
+    }
+  }, [isCheckingUsername]);
 
   const handleBack = () => {
     router.back();
@@ -173,6 +183,10 @@ export default function ProfileSetupScreen() {
     height: suggestionsHeight.value,
     opacity: suggestionsHeight.value === 0 ? 0 : 1,
     overflow: 'hidden'
+  }));
+
+  const spinAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spinValue.value}deg` }]
   }));
 
   return (
@@ -336,7 +350,7 @@ export default function ProfileSetupScreen() {
                 autoCapitalize="none"
               />
               {isCheckingUsername && username ? (
-                <View style={styles.loadingIndicator} />
+                <Animated.View style={[styles.loadingIndicator, spinAnimatedStyle]} />
               ) : usernameAvailable && username ? (
                 <CheckCircle size={20} color="#10B981" />
               ) : null}
@@ -584,10 +598,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#3B82F6',
     borderTopColor: 'transparent',
-    animationName: 'spin',
-    animationDuration: '1s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'linear',
   },
   footer: {
     padding: 24,
