@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwipeGestureWrapper } from '@/components/SwipeGestureWrapper';
 import { useTheme } from '@/context/ThemeContext';
-import { Send, Mic, Camera, Paperclip, Bot, Lightbulb, BookOpen, FileText, Sparkles, X, ChevronDown, ChevronUp, Clock, Bookmark, Share2, ThumbsUp, ThumbsDown, Copy, MoreVertical } from 'lucide-react-native';
+import { Send, Mic, Camera, Paperclip, Bot, Lightbulb, BookOpen, FileText, Sparkles, X, ChevronDown, ChevronUp, Clock, Bookmark, Share2, ThumbsUp, ThumbsDown, Copy, MoveVertical as MoreVertical } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInRight, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay } from 'react-native-reanimated';
 
 interface Message {
