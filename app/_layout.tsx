@@ -66,6 +66,7 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  useFrameworkReady();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
