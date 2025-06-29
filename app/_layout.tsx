@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -29,7 +30,9 @@ export default function RootLayout() {
   useEffect(() => {
     if ((fontsLoaded || fontError) && !hasHiddenSplashScreen.current) {
       hasHiddenSplashScreen.current = true;
-      SplashScreen.hideAsync();
+      if (Platform.OS !== 'web') {
+        SplashScreen.hideAsync();
+      }
     }
   }, [fontsLoaded, fontError]);
 

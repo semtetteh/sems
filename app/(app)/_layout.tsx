@@ -7,7 +7,9 @@ import { useTheme } from '@/context/ThemeContext';
 
 export default function AppLayout() {
   const { openProfileDrawer } = useAppContext();
-  const { colors, isDark } = useTheme();
+  const theme = useTheme();
+  const isDark = theme.isDark;
+  const colors = theme.colors;
 
   return (
     <>
