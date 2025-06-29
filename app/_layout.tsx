@@ -11,8 +11,10 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 
-// Prevent splash screen from auto-hiding
-SplashScreen.preventAutoHideAsync();
+// Prevent splash screen from auto-hiding only on native platforms
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync();
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
