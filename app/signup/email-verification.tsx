@@ -2,10 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, Mail, CircleAlert as AlertCircle, Shield } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Mail, AlertCircle, Shield } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp, 
+  SlideInRight, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withTiming, 
+  withSequence, 
+  withSpring, 
+  withDelay 
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -22,18 +33,59 @@ export default function EmailVerificationScreen() {
     "Your data is encrypted and secure"
   ]);
 
+  // Animation values
+  const emailInputScale = useSharedValue(1);
+  const emailInputBorderWidth = useSharedValue(1);
+  const mailIconFloat = useSharedValue(0);
+  const mailIconRotate = useSharedValue(0);
+  const buttonScale = useSharedValue(1);
+  const securityItemsOpacity = useSharedValue(0);
+
   useEffect(() => {
     // Ensure we're on the correct step
     setCurrentStep(2);
+    
+    // Start floating animation for mail icon
+    mailIconFloat.value = withRepeat(
+      withSequence(
+        withTiming(-5, { duration: 1000 }),
+        withTiming(0, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+    
+    // Start rotation animation for mail icon
+    mailIconRotate.value = withRepeat(
+      withSequence(
+        withTiming(-5, { duration: 2000 }),
+        withTiming(5, { duration: 2000 })
+      ),
+      -1,
+      true
+    );
+    
+    // Animate security items in
+    securityItemsOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
   }, []);
 
   useEffect(() => {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    setIsValid(emailRegex.test(email));
+    const isValidEmail = emailRegex.test(email);
+    setIsValid(isValidEmail);
     
     // Clear error when user types
     if (error) setError('');
+
+    // Animate input on validation change
+    if (email && !isValidEmail) {
+      emailInputBorderWidth.value = withTiming(2, { duration: 300 });
+    } else if (email && isValidEmail) {
+      emailInputBorderWidth.value = withTiming(2, { duration: 300 });
+    } else {
+      emailInputBorderWidth.value = withTiming(1, { duration: 300 });
+    }
   }, [email]);
 
   const handleBack = () => {
@@ -43,16 +95,28 @@ export default function EmailVerificationScreen() {
   const handleContinue = () => {
     if (!isValid) {
       setError('Please enter a valid email address');
+      emailInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       return;
     }
 
     // Check if it's a school email (this is a simplified check)
     if (!email.includes('.edu') && !email.includes('ac.')) {
       setError('Please use your school email address');
+      emailInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       return;
     }
 
     setIsLoading(true);
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 200 }),
+      withTiming(1, { duration: 200 })
+    );
 
     // Simulate API call to send verification code
     setTimeout(() => {
@@ -61,6 +125,28 @@ export default function EmailVerificationScreen() {
       router.push('/signup/otp-verification');
     }, 1000);
   };
+
+  const emailInputStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: emailInputScale.value }],
+    borderWidth: emailInputBorderWidth.value,
+    borderColor: error ? '#EF4444' : (isValid && email ? '#10B981' : (isDark ? '#374151' : '#E5E7EB'))
+  }));
+
+  const mailIconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: mailIconFloat.value },
+      { rotateZ: `${mailIconRotate.value}deg` }
+    ]
+  }));
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }]
+  }));
+
+  const securityContainerStyle = useAnimatedStyle(() => ({
+    opacity: securityItemsOpacity.value,
+    transform: [{ translateY: (1 - securityItemsOpacity.value) * 20 }]
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
@@ -111,19 +197,28 @@ export default function EmailVerificationScreen() {
 
           <Animated.View 
             entering={FadeInDown.delay(300).duration(500)}
+            style={styles.emailIconContainer}
+          >
+            <Animated.View style={mailIconStyle}>
+              <Mail size={64} color={isDark ? '#60A5FA' : '#3B82F6'} />
+            </Animated.View>
+          </Animated.View>
+
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(500)}
             style={styles.formGroup}
           >
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               School Email
             </Text>
-            <View style={[
-              styles.inputContainer,
-              { 
-                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: error ? '#EF4444' : isDark ? '#374151' : '#E5E7EB'
-              }
-            ]}>
-              <Mail size={20} color={error ? '#EF4444' : (isDark ? '#60A5FA' : '#3B82F6')} />
+            <Animated.View 
+              style={[
+                styles.inputContainer,
+                { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
+                emailInputStyle
+              ]}
+            >
+              <Mail size={20} color={error ? '#EF4444' : (isValid && email ? '#10B981' : (isDark ? '#60A5FA' : '#3B82F6'))} />
               <TextInput
                 style={[styles.input, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
                 placeholder="your.name@school.edu"
@@ -134,11 +229,16 @@ export default function EmailVerificationScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
               />
-            </View>
+            </Animated.View>
             {error ? (
               <View style={styles.errorContainer}>
                 <AlertCircle size={16} color="#EF4444" />
                 <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : isValid && email ? (
+              <View style={styles.successContainer}>
+                <Shield size={16} color="#10B981" />
+                <Text style={styles.successText}>Valid school email</Text>
               </View>
             ) : (
               <Text style={[styles.helperText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
@@ -160,8 +260,11 @@ export default function EmailVerificationScreen() {
           </Animated.View>
 
           <Animated.View 
-            entering={FadeInDown.delay(500).duration(500)}
-            style={[styles.securityContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
+            style={[
+              styles.securityContainer, 
+              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
+              securityContainerStyle
+            ]}
           >
             <View style={styles.securityHeader}>
               <Shield size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
@@ -189,36 +292,38 @@ export default function EmailVerificationScreen() {
           entering={FadeInUp.delay(600).duration(500)}
           style={styles.footer}
         >
-          <TouchableOpacity 
-            style={[
-              styles.continueButton, 
-              { 
-                backgroundColor: isValid ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
-                opacity: isValid && !isLoading ? 1 : 0.5
-              }
-            ]}
-            onPress={handleContinue}
-            disabled={!isValid || isLoading}
-          >
-            {isLoading ? (
-              <Text style={[
-                styles.continueButtonText,
-                { color: '#FFFFFF' }
-              ]}>
-                Sending...
-              </Text>
-            ) : (
-              <>
+          <Animated.View style={buttonAnimatedStyle}>
+            <TouchableOpacity 
+              style={[
+                styles.continueButton, 
+                { 
+                  backgroundColor: isValid ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
+                  opacity: isValid && !isLoading ? 1 : 0.5
+                }
+              ]}
+              onPress={handleContinue}
+              disabled={!isValid || isLoading}
+            >
+              {isLoading ? (
                 <Text style={[
                   styles.continueButtonText,
-                  { color: isValid ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
+                  { color: '#FFFFFF' }
                 ]}>
-                  Continue
+                  Sending...
                 </Text>
-                <ArrowRight size={20} color={isValid ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} />
-              </>
-            )}
-          </TouchableOpacity>
+              ) : (
+                <>
+                  <Text style={[
+                    styles.continueButtonText,
+                    { color: isValid ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
+                  ]}>
+                    Continue
+                  </Text>
+                  <ArrowRight size={20} color={isValid ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} />
+                </>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -275,6 +380,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginBottom: 32,
   },
+  emailIconContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
   formGroup: {
     marginBottom: 24,
   },
@@ -286,7 +395,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 56,
@@ -304,6 +412,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#EF4444',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    marginLeft: 6,
+  },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  successText: {
+    color: '#10B981',
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     marginLeft: 6,

@@ -2,11 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, User, Camera, AtSign, CircleAlert as AlertCircle, CircleCheck as CheckCircle, CreditCard as Edit3, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, User, Camera, AtSign, AlertCircle, CheckCircle, Edit3, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
-import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, useAnimatedStyle, useSharedValue, withSpring, withTiming, withRepeat } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp, 
+  SlideInRight, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withSpring, 
+  withTiming, 
+  withSequence, 
+  withRepeat 
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -33,8 +44,12 @@ export default function ProfileSetupScreen() {
   
   // Animation values
   const avatarScale = useSharedValue(1);
+  const avatarRotate = useSharedValue(0);
   const suggestionsHeight = useSharedValue(0);
   const spinValue = useSharedValue(0);
+  const nameInputScale = useSharedValue(1);
+  const usernameInputScale = useSharedValue(1);
+  const checkmarkScale = useSharedValue(0);
 
   useEffect(() => {
     // Ensure we're on the correct step
@@ -64,8 +79,13 @@ export default function ProfileSetupScreen() {
         
         if (!isAvailable) {
           setUsernameError('Username already taken');
+          usernameInputScale.value = withSequence(
+            withTiming(1.05, { duration: 100 }),
+            withTiming(1, { duration: 100 })
+          );
         } else {
           setUsernameError('');
+          checkmarkScale.value = withSpring(1);
         }
       }, 1000);
       
@@ -74,6 +94,7 @@ export default function ProfileSetupScreen() {
       setUsernameError('');
       setUsernameAvailable(false);
       setIsCheckingUsername(false);
+      checkmarkScale.value = withSpring(0);
     }
   }, [username]);
 
@@ -120,6 +141,9 @@ export default function ProfileSetupScreen() {
   const toggleAvatarSuggestions = () => {
     setShowAvatarSuggestions(!showAvatarSuggestions);
     suggestionsHeight.value = withTiming(showAvatarSuggestions ? 0 : 120);
+    
+    // Rotate avatar icon when toggling suggestions
+    avatarRotate.value = withTiming(avatarRotate.value + 180, { duration: 300 });
   };
 
   const selectSuggestedAvatar = (uri: string) => {
@@ -138,17 +162,33 @@ export default function ProfileSetupScreen() {
     
     if (!fullName.trim()) {
       setNameError('Please enter your full name');
+      nameInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       isValid = false;
     }
     
     if (!username.trim()) {
       setUsernameError('Please enter a username');
+      usernameInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       isValid = false;
     } else if (username.includes(' ')) {
       setUsernameError('Username cannot contain spaces');
+      usernameInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       isValid = false;
     } else if (!usernameAvailable) {
       setUsernameError('Please choose an available username');
+      usernameInputScale.value = withSequence(
+        withTiming(1.05, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
       isValid = false;
     }
     
@@ -176,7 +216,10 @@ export default function ProfileSetupScreen() {
   };
 
   const avatarAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarScale.value }]
+    transform: [
+      { scale: avatarScale.value },
+      { rotateY: `${avatarRotate.value}deg` }
+    ]
   }));
 
   const suggestionsAnimatedStyle = useAnimatedStyle(() => ({
@@ -187,6 +230,19 @@ export default function ProfileSetupScreen() {
 
   const spinAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${spinValue.value}deg` }]
+  }));
+
+  const nameInputAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: nameInputScale.value }]
+  }));
+
+  const usernameInputAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: usernameInputScale.value }]
+  }));
+
+  const checkmarkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkmarkScale.value }],
+    opacity: checkmarkScale.value
   }));
 
   return (
@@ -296,13 +352,16 @@ export default function ProfileSetupScreen() {
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               Full Name
             </Text>
-            <View style={[
-              styles.inputContainer,
-              { 
-                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: nameError ? '#EF4444' : isDark ? '#374151' : '#E5E7EB'
-              }
-            ]}>
+            <Animated.View 
+              style={[
+                styles.inputContainer,
+                { 
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  borderColor: nameError ? '#EF4444' : isDark ? '#374151' : '#E5E7EB'
+                },
+                nameInputAnimatedStyle
+              ]}
+            >
               <User size={20} color={nameError ? '#EF4444' : (isDark ? '#60A5FA' : '#3B82F6')} />
               <TextInput
                 style={[styles.input, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
@@ -311,7 +370,7 @@ export default function ProfileSetupScreen() {
                 value={fullName}
                 onChangeText={setFullName}
               />
-            </View>
+            </Animated.View>
             {nameError ? (
               <View style={styles.errorContainer}>
                 <AlertCircle size={16} color="#EF4444" />
@@ -327,15 +386,18 @@ export default function ProfileSetupScreen() {
             <Text style={[styles.label, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
               Username
             </Text>
-            <View style={[
-              styles.inputContainer,
-              { 
-                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: usernameError ? '#EF4444' : 
+            <Animated.View 
+              style={[
+                styles.inputContainer,
+                { 
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  borderColor: usernameError ? '#EF4444' : 
                              usernameAvailable && username ? '#10B981' : 
                              isDark ? '#374151' : '#E5E7EB'
-              }
-            ]}>
+                },
+                usernameInputAnimatedStyle
+              ]}
+            >
               <AtSign size={20} color={
                 usernameError ? '#EF4444' : 
                 usernameAvailable && username ? '#10B981' : 
@@ -352,9 +414,11 @@ export default function ProfileSetupScreen() {
               {isCheckingUsername && username ? (
                 <Animated.View style={[styles.loadingIndicator, spinAnimatedStyle]} />
               ) : usernameAvailable && username ? (
-                <CheckCircle size={20} color="#10B981" />
+                <Animated.View style={checkmarkAnimatedStyle}>
+                  <CheckCircle size={20} color="#10B981" />
+                </Animated.View>
               ) : null}
-            </View>
+            </Animated.View>
             {usernameError ? (
               <View style={styles.errorContainer}>
                 <AlertCircle size={16} color="#EF4444" />
@@ -561,6 +625,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     marginLeft: 12,
+    marginRight: 12,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
   },
@@ -592,9 +657,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loadingIndicator: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: '#3B82F6',
     borderTopColor: 'transparent',

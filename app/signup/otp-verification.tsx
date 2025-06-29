@@ -2,10 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, CircleCheck as CheckCircle, Clock, ShieldCheck, Mail } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, ShieldCheck, Mail } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp, 
+  SlideInRight, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withRepeat, 
+  withTiming, 
+  withSequence, 
+  withDelay,
+  withSpring
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -26,10 +38,26 @@ export default function OtpVerificationScreen() {
   // Animation values
   const successScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(1);
+  const shakeValue = useSharedValue(0);
+  const otpInputScales = useSharedValue([1, 1, 1, 1, 1, 1]);
+  const verificationProgress = useSharedValue(0);
+  const codeContainerScale = useSharedValue(1);
+  const mailIconScale = useSharedValue(1);
+  const mailIconY = useSharedValue(0);
 
   useEffect(() => {
     // Ensure we're on the correct step
     setCurrentStep(3);
+    
+    // Start mail icon animation
+    mailIconY.value = withRepeat(
+      withSequence(
+        withTiming(-10, { duration: 1000 }),
+        withTiming(0, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
   }, []);
 
   useEffect(() => {
@@ -55,6 +83,17 @@ export default function OtpVerificationScreen() {
     newOtp[index] = text;
     setOtp(newOtp);
     
+    // Animate the input
+    const newScales = [...otpInputScales.value];
+    newScales[index] = 1.1;
+    otpInputScales.value = newScales;
+    
+    setTimeout(() => {
+      const resetScales = [...otpInputScales.value];
+      resetScales[index] = 1;
+      otpInputScales.value = resetScales;
+    }, 100);
+    
     // Auto-focus next input if value is entered
     if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
@@ -72,21 +111,36 @@ export default function OtpVerificationScreen() {
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
       Alert.alert('Invalid Code', 'Please enter the complete 6-digit code');
+      
+      // Shake animation for error
+      shakeValue.value = withSequence(
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(0, { duration: 100 })
+      );
+      
       return;
     }
 
     setIsLoading(true);
+    codeContainerScale.value = withTiming(0.95);
+
+    // Simulate verification with progress animation
+    verificationProgress.value = 0;
+    verificationProgress.value = withTiming(1, { duration: 1500 });
 
     // Simulate verification
     setTimeout(() => {
       setIsLoading(false);
       setIsVerified(true);
+      codeContainerScale.value = withTiming(1);
       
       // Start success animation
-      successScale.value = withRepeat(
-        withTiming(1.2, { duration: 300 }),
-        2,
-        true
+      successScale.value = withSequence(
+        withSpring(1.2),
+        withSpring(1)
       );
       
       // Navigate to next step after showing success state
@@ -102,9 +156,18 @@ export default function OtpVerificationScreen() {
     // Simulate resending code
     setResendCountdown(60);
     
+    // Animate mail icon
+    mailIconScale.value = withSequence(
+      withTiming(1.2, { duration: 300 }),
+      withTiming(1, { duration: 300 })
+    );
+    
     // Start pulse animation for the email icon
     pulseOpacity.value = withRepeat(
-      withTiming(0.5, { duration: 1000 }),
+      withSequence(
+        withTiming(0.5, { duration: 1000 }),
+        withTiming(1, { duration: 1000 })
+      ),
       2,
       true
     );
@@ -118,6 +181,33 @@ export default function OtpVerificationScreen() {
 
   const pulseAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pulseOpacity.value
+  }));
+
+  const shakeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeValue.value }]
+  }));
+
+  const getOtpInputStyle = (index: number) => {
+    return useAnimatedStyle(() => ({
+      transform: [{ scale: otpInputScales.value[index] }],
+      borderColor: otp[index] ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB')
+    }));
+  };
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${verificationProgress.value * 100}%`,
+    opacity: isLoading ? 1 : 0
+  }));
+
+  const codeContainerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: codeContainerScale.value }]
+  }));
+
+  const mailIconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: mailIconScale.value },
+      { translateY: mailIconY.value }
+    ]
   }));
 
   return (
@@ -182,36 +272,51 @@ export default function OtpVerificationScreen() {
           ) : (
             <Animated.View 
               entering={FadeInDown.delay(300).duration(500)}
-              style={styles.otpContainer}
+              style={[styles.otpContainer, shakeAnimatedStyle]}
             >
               <Animated.View 
-                style={[styles.emailIconContainer, pulseAnimatedStyle]}
+                style={[styles.emailIconContainer, pulseAnimatedStyle, mailIconAnimatedStyle]}
               >
                 <Mail size={32} color={isDark ? '#60A5FA' : '#3B82F6'} />
               </Animated.View>
               
-              <View style={styles.otpInputsContainer}>
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={ref => inputRefs.current[index] = ref}
+              <Animated.View style={codeContainerStyle}>
+                <View style={styles.otpInputsContainer}>
+                  {otp.map((digit, index) => (
+                    <Animated.View
+                      key={index}
+                      style={[
+                        styles.otpInputWrapper,
+                        { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
+                        getOtpInputStyle(index)
+                      ]}
+                    >
+                      <TextInput
+                        ref={ref => inputRefs.current[index] = ref}
+                        style={[styles.otpInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+                        value={digit}
+                        onChangeText={text => handleOtpChange(text, index)}
+                        onKeyPress={e => handleKeyPress(e, index)}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        textAlign="center"
+                      />
+                    </Animated.View>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {isLoading && (
+                <View style={styles.progressBarContainer}>
+                  <Animated.View 
                     style={[
-                      styles.otpInput,
-                      { 
-                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                        borderColor: digit ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB'),
-                        color: isDark ? '#E5E7EB' : '#1F2937'
-                      }
-                    ]}
-                    value={digit}
-                    onChangeText={text => handleOtpChange(text, index)}
-                    onKeyPress={e => handleKeyPress(e, index)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
+                      styles.progressBar, 
+                      { backgroundColor: '#3B82F6' },
+                      progressBarStyle
+                    ]} 
                   />
-                ))}
-              </View>
+                </View>
+              )}
             </Animated.View>
           )}
 
@@ -310,10 +415,7 @@ export default function OtpVerificationScreen() {
                 </Text>
                 <ArrowRight 
                   size={20} 
-                  color={otp.every(digit => digit) && !isVerified ? 
-                    '#FFFFFF' : 
-                    (isDark ? '#9CA3AF' : '#6B7280')
-                  } 
+                  color={otp.every(digit => digit) && !isVerified ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')} 
                 />
               </>
             )}
@@ -388,15 +490,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     width: '100%',
+    gap: 8,
   },
-  otpInput: {
+  otpInputWrapper: {
     width: width > 380 ? 48 : 40,
     height: width > 380 ? 56 : 48,
     borderWidth: 2,
     borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  otpInput: {
+    width: '100%',
+    height: '100%',
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    marginHorizontal: 4,
+    textAlign: 'center',
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 4,
+    backgroundColor: isDark ? '#374151' : '#E5E7EB',
+    borderRadius: 2,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
   },
   verificationSuccess: {
     alignItems: 'center',

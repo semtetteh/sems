@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Search, ArrowRight, MapPin, School, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn, useAnimatedStyle, useSharedValue, withTiming, withSpring } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +46,27 @@ const mockSchools = [
     logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
     featured: false,
   },
+  {
+    id: '6',
+    name: 'University of Professional Studies',
+    location: 'Accra, Ghana',
+    logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
+  },
+  {
+    id: '7',
+    name: 'Central University',
+    location: 'Accra, Ghana',
+    logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
+  },
+  {
+    id: '8',
+    name: 'University of Education',
+    location: 'Winneba, Ghana',
+    logo: 'https://images.pexels.com/photos/159490/yale-university-landscape-universities-schools-159490.jpeg?auto=compress&cs=tinysrgb&w=100',
+    featured: false,
+  },
 ];
 
 export default function SchoolSelectionScreen() {
@@ -53,9 +74,16 @@ export default function SchoolSelectionScreen() {
   const { currentStep, setCurrentStep, updateSignUpData } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [schools, setSchools] = useState(mockSchools);
+  const [filteredSchools, setFilteredSchools] = useState<typeof mockSchools>([]);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
   const [featuredSchools, setFeaturedSchools] = useState<typeof mockSchools>([]);
+  const [showResults, setShowResults] = useState(false);
+  
+  // Animation values
+  const searchBarWidth = useSharedValue('90%');
+  const searchBarBorderRadius = useSharedValue(50);
+  const resultsOpacity = useSharedValue(0);
+  const searchIconScale = useSharedValue(1);
 
   useEffect(() => {
     // Ensure we're on the correct step
@@ -66,20 +94,36 @@ export default function SchoolSelectionScreen() {
   }, []);
 
   useEffect(() => {
-    // Simulate API call for searching schools
+    // Filter schools based on search query
     if (searchQuery) {
       setIsLoading(true);
       setTimeout(() => {
-        const filteredSchools = mockSchools.filter(
+        const filtered = mockSchools.filter(
           school => 
             school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             school.location.toLowerCase().includes(searchQuery.toLowerCase())
         );
-        setSchools(filteredSchools);
+        setFilteredSchools(filtered);
         setIsLoading(false);
+        
+        // Show results with animation
+        if (!showResults) {
+          setShowResults(true);
+          searchBarWidth.value = withTiming('100%');
+          searchBarBorderRadius.value = withTiming(16);
+          resultsOpacity.value = withTiming(1);
+        }
       }, 500);
     } else {
-      setSchools(mockSchools);
+      setFilteredSchools([]);
+      
+      // Hide results with animation
+      if (showResults) {
+        setShowResults(false);
+        searchBarWidth.value = withTiming('90%');
+        searchBarBorderRadius.value = withTiming(50);
+        resultsOpacity.value = withTiming(0);
+      }
     }
   }, [searchQuery]);
 
@@ -89,12 +133,19 @@ export default function SchoolSelectionScreen() {
 
   const handleContinue = () => {
     if (selectedSchool) {
-      const school = schools.find(s => s.id === selectedSchool);
+      const school = mockSchools.find(s => s.id === selectedSchool);
       if (school) {
         updateSignUpData({ school: school.name });
         router.push('/signup/email-verification');
       }
     }
+  };
+
+  const handleSearchFocus = () => {
+    searchIconScale.value = withSpring(1.2);
+    setTimeout(() => {
+      searchIconScale.value = withSpring(1);
+    }, 300);
   };
 
   const renderSchoolItem = ({ item, index }) => (
@@ -109,7 +160,6 @@ export default function SchoolSelectionScreen() {
         ]}
         onPress={() => setSelectedSchool(item.id)}
       >
-        <Image source={{ uri: item.logo }} style={styles.schoolLogo} />
         <View style={styles.schoolInfo}>
           <Text 
             style={[styles.schoolName, { color: isDark ? '#FFFFFF' : '#111827' }]}
@@ -133,6 +183,23 @@ export default function SchoolSelectionScreen() {
       </TouchableOpacity>
     </Animated.View>
   );
+
+  // Animated styles
+  const searchContainerStyle = useAnimatedStyle(() => ({
+    width: searchBarWidth.value,
+    borderRadius: searchBarBorderRadius.value,
+  }));
+
+  const searchIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: searchIconScale.value }]
+  }));
+
+  const resultsContainerStyle = useAnimatedStyle(() => ({
+    opacity: resultsOpacity.value,
+    transform: [{ 
+      translateY: resultsOpacity.value === 0 ? 20 : 0 
+    }]
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
@@ -177,54 +244,45 @@ export default function SchoolSelectionScreen() {
           Connect with your campus community
         </Text>
 
-        <Animated.View 
-          entering={FadeInDown.delay(300).duration(500)}
-          style={[styles.searchContainer, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}
-        >
-          <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-          <TextInput
-            style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
-            placeholder="Search for your school"
-            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </Animated.View>
-
-        {featuredSchools.length > 0 && !searchQuery && (
+        <View style={styles.searchSection}>
           <Animated.View 
-            entering={FadeInDown.delay(400).duration(500)}
-            style={styles.featuredSection}
+            style={[
+              styles.searchContainer, 
+              { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
+              searchContainerStyle
+            ]}
           >
-            <Text style={[styles.featuredTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              Featured Schools
-            </Text>
-            <FlatList
-              data={featuredSchools}
-              renderItem={renderSchoolItem}
-              keyExtractor={item => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredList}
+            <Animated.View style={searchIconStyle}>
+              <Search size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            </Animated.View>
+            <TextInput
+              style={[styles.searchInput, { color: isDark ? '#E5E7EB' : '#1F2937' }]}
+              placeholder="Search for your school"
+              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={handleSearchFocus}
             />
           </Animated.View>
-        )}
+        </View>
 
         <Animated.View 
-          entering={FadeInDown.delay(500).duration(500)}
-          style={styles.allSchoolsSection}
+          style={[
+            styles.schoolsContainer,
+            resultsContainerStyle,
+            { display: showResults ? 'flex' : 'none' }
+          ]}
         >
-          <Text style={[styles.allSchoolsTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-            {searchQuery ? 'Search Results' : 'All Schools'}
-          </Text>
-          
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#3B82F6" />
+              <Text style={[styles.loadingText, { color: isDark ? '#E5E7EB' : '#4B5563' }]}>
+                Searching schools...
+              </Text>
             </View>
-          ) : schools.length > 0 ? (
+          ) : filteredSchools.length > 0 ? (
             <FlatList
-              data={schools}
+              data={filteredSchools}
               renderItem={renderSchoolItem}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.schoolsList}
@@ -239,6 +297,21 @@ export default function SchoolSelectionScreen() {
             </View>
           )}
         </Animated.View>
+
+        {!showResults && (
+          <Animated.View 
+            entering={FadeInDown.delay(400).duration(500)}
+            style={styles.schoolsPrompt}
+          >
+            <School size={64} color={isDark ? '#60A5FA' : '#3B82F6'} />
+            <Text style={[styles.promptTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              Find Your School
+            </Text>
+            <Text style={[styles.promptText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Search for your university or college to connect with your campus community
+            </Text>
+          </Animated.View>
+        )}
       </Animated.View>
 
       <Animated.View 
@@ -317,6 +390,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
+    marginBottom: 32,
+  },
+  searchSection: {
+    alignItems: 'center',
     marginBottom: 24,
   },
   searchContainer: {
@@ -324,8 +401,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
-    borderRadius: 16,
-    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -341,35 +416,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
   },
-  featuredSection: {
-    marginBottom: 24,
-  },
-  featuredTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 12,
-  },
-  featuredList: {
-    paddingRight: 16,
-  },
-  allSchoolsSection: {
+  schoolsContainer: {
     flex: 1,
-  },
-  allSchoolsTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 12,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   schoolsList: {
     paddingBottom: 24,
   },
   schoolCard: {
-    flexDirection: 'row',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
@@ -381,14 +434,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    alignItems: 'center',
     position: 'relative',
-  },
-  schoolLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    marginRight: 16,
   },
   schoolInfo: {
     flex: 1,
@@ -396,7 +442,7 @@ const styles = StyleSheet.create({
   schoolName: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -424,6 +470,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Inter-Medium',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    marginTop: 16,
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -436,6 +492,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     maxWidth: '80%',
+  },
+  schoolsPrompt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  promptTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  promptText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   footer: {
     padding: 24,
