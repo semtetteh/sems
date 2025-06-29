@@ -7,7 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from '@/context/AppContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 
@@ -16,7 +16,8 @@ if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync();
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { isDark } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
     'Inter-Medium': Inter_500Medium,
@@ -33,7 +34,10 @@ export default function RootLayout() {
     if ((fontsLoaded || fontError) && !hasHiddenSplashScreen.current) {
       hasHiddenSplashScreen.current = true;
       if (Platform.OS !== 'web') {
-        SplashScreen.hideAsync();
+        // Add a small delay to prevent race condition
+        setTimeout(() => {
+          SplashScreen.hideAsync();
+        }, 100);
       }
     }
   }, [fontsLoaded, fontError]);
@@ -43,23 +47,31 @@ export default function RootLayout() {
   }
 
   return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
+        <Stack.Screen name="signup/school-selection" options={{ headerShown: false }} />
+        <Stack.Screen name="signup/email-verification" options={{ headerShown: false }} />
+        <Stack.Screen name="signup/otp-verification" options={{ headerShown: false }} />
+        <Stack.Screen name="signup/profile-setup" options={{ headerShown: false }} />
+        <Stack.Screen name="signup/password-creation" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
+      </Stack>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
           <AppProvider>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="signup" options={{ headerShown: false }} />
-              <Stack.Screen name="signup/school-selection" options={{ headerShown: false }} />
-              <Stack.Screen name="signup/email-verification" options={{ headerShown: false }} />
-              <Stack.Screen name="signup/otp-verification" options={{ headerShown: false }} />
-              <Stack.Screen name="signup/profile-setup" options={{ headerShown: false }} />
-              <Stack.Screen name="signup/password-creation" options={{ headerShown: false }} />
-              <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-              <Stack.Screen name="(app)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
-            </Stack>
+            <RootLayoutContent />
           </AppProvider>
         </AuthProvider>
       </ThemeProvider>
